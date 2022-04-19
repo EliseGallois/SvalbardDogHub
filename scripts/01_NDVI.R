@@ -261,7 +261,7 @@ lsat.pheno.dt <- lsat.pheno.dt %>%
   facet_wrap(vars(yard)))
 
 ggplot(lsat.trend.dt) +
-  aes(x = longitude, y = latitude, colour = total.change.pcnt) +
+  aes(x = longitude, y = latitude, colour = slope) +
   geom_point(size = 3L, shape = 15) +
   scale_color_distiller(palette = "BrBG", direction = -2) +
   theme_classic() +
@@ -270,7 +270,7 @@ ggplot(lsat.trend.dt) +
 ggplot(lsat.gs.dt) +
   aes(x = longitude, y = latitude, colour = ndvi.max) +
   geom_point(size = 3L, shape = 15) +
-  cale_color_gradientn(name = 'NDVI max',  colours = c('gold','grey','green')) + 
+  scale_color_gradientn(name = 'NDVI max',  colours = c('gold','grey','green')) + 
   theme_classic() +
   facet_wrap(vars(yard), scales = "free")
 
