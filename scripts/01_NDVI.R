@@ -286,5 +286,114 @@ plot(buffer)
 
 # buffer check
 outfile <- 'data/ref_ring.shp'
-writeVector(buffer, outfile, overwrite=TRUE) # yep - plotted it in qgis and we have beautiful beautiful doughnuts
+writeVector(buffer, outfile, overwrite=TRUE) # yep - plotted it in qgis and looks good!
+
+# now re-read in file as a sf object and send to GEE
+ref_poly <- read_sf('data/ref_ring.shp')
+
+plot(ref_poly$geometry)
+ref_poly$region <- paste0("unique_id_", 1:nrow(ref_poly))
+
+ref_poly$region <- as.factor(ref_poly$region)
+
+#reorder columns
+ref_poly <- ref_poly[, c(1,4,5)]
+
+# make sure all in lat/lon
+ref_poly <- ref_poly %>% st_transform(crs = 4326)
+
+# split
+REF_fest <- subset(ref_poly, site == "REF_fest")
+REF_tem <- subset(ref_poly, site == "REF_tem")
+REF_bjor <- subset(ref_poly, site == "REF_bjor")
+BC_Fjort <- subset(ref_poly, site == "BC_Fjort")
+BC_Oss <- subset(ref_poly, site == "BC_Oss")
+BC_stu <- subset(ref_poly, site == "BC_stu")
+BC_skans <- subset(ref_poly, site == "BC_skans")
+BC_alkhor <- subset(ref_poly, site == "BC_alkhor")
+
+# Use lsat_get_pixel_centers to retrieve pixel centers and plot to a file that can be added to this documentation.
+# We set plot_map to a file path (or just TRUE) to view 
+REF_fest_poly <- lsat_get_pixel_centers(REF_fest, buffer = 0, plot_map = T)
+REF_tem_poly <- lsat_get_pixel_centers(REF_tem, buffer = 0, plot_map = T)
+REF_bjor_poly <- lsat_get_pixel_centers(REF_bjor, buffer = 0, plot_map = T)
+BC_Fjort_poly <- lsat_get_pixel_centers(BC_Fjort, buffer = 0, plot_map = T)
+BC_Oss_poly <- lsat_get_pixel_centers(BC_Oss, buffer = 0, plot_map = T)
+BC_stu_poly <- lsat_get_pixel_centers(BC_stu, buffer = 0, plot_map = T)
+BC_skans_poly <- lsat_get_pixel_centers(BC_skans, buffer = 0, plot_map = T)
+BC_alkhor_poly <- lsat_get_pixel_centers(BC_alkhor, buffer = 0, plot_map = T)
+
+
+# add "_key" to sample_ID
+REF_fest_poly$sample_id <- paste((REF_fest_poly$sample_id), "_REF_fest")
+REF_tem_poly$sample_id <- paste((REF_tem_poly$sample_id), "_REF_tem")
+REF_bjor_poly$sample_id <- paste((REF_bjor_poly$sample_id), "_REF_bjor")
+BC_Fjort_poly$sample_id <- paste((BC_Fjort_poly$sample_id), "_BC_Fjort")
+BC_Oss_poly$sample_id <- paste((BC_Oss_poly$sample_id), "_BC_Oss")
+BC_stu_poly$sample_id <- paste((BC_stu_poly$sample_id), "_BC_stu")
+BC_skans_poly$sample_id <- paste((BC_skans_poly$sample_id), "_BC_skans")
+BC_alkhor_poly$sample_id <- paste((BC_alkhor_poly$sample_id), "_BC_alkhor")
+
+# Bind Rows
+
+ref_ring_pix <- bind_rows(REF_fest_poly, REF_tem_poly, REF_bjor_poly, BC_Fjort_poly,
+                          BC_Oss_poly, BC_stu_poly, BC_skans_poly, BC_alkhor_poly)
+
+
+# Extract a time-series of Landsat surface reflectance measurements for each Landsat pixel
+task_list <- lsat_export_ts(pixel_coords_sf = ref_ring_pix, startJulian = 120, endJulian = 273,
+                            file_prefix = 'ref_bird', drive_export_dir = 'earth_engine/lsat_refring')
+
+# check status
+ee_monitoring()
+
+
+
+# Create a list of data files exported from GEE and then read them in to R as a data.table object 
+data.files <- list.files('data/earth_engine-lsat_refring', full.names = T, pattern = 'ref_bird')
+lsat.dt <- do.call("rbind", lapply(data.files, fread))
+
+
+
+
+#### 5 - LSAT Tool-  Polygons - EXTRA SITES ####
+pig <- vect("data/pyr.shp")
+plot(pig)
+
+# create buffer
+buffer <-  terra::buffer(pig, width = 50, quadsegs = 5)
+plot(buffer)
+
+
+# buffer check
+outfile <- 'data/pig_ring.shp'
+writeVector(buffer, outfile, overwrite=TRUE) # yep - plotted it in qgis and looks good!
+
+# now re-read in file as a sf object and send to GEE
+pig_poly <- read_sf('data/pig_ring.shp')
+
+plot(pig_poly$geometry)
+pig_poly$region <- paste0("unique_id_", 1:nrow(pig_poly))
+
+pig_poly$region <- as.factor(pig_poly$region)
+
+
+# make sure all in lat/lon
+pig_poly <- pig_poly %>% st_transform(crs = 4326)
+
+# get pixel centres
+pig_poly <- lsat_get_pixel_centers(pig_poly, buffer = 0, plot_map = T)
+
+
+# add "_key" to sample_ID
+pig_poly$sample_id <- paste((pig_poly$sample_id), "_PYR_pig")
+
+# Extract a time-series of Landsat surface reflectance measurements for each Landsat pixel
+task_list <- lsat_export_ts(pixel_coords_sf = pig_poly, startJulian = 120, endJulian = 273,
+                            file_prefix = 'ref_bird', drive_export_dir = 'earth_engine/lsat_pigring')
+
+# check status
+ee_monitoring()
+
+
 
