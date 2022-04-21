@@ -42,7 +42,7 @@ raster::writeRaster(long_slope, 'data/longyear_slope.tif', format = 'GTiff', ove
 barents_slope <- raster::terrain(barents_dem, opt = 'slope', unit = 'degrees')  #calculate slope
 plot(barents_slope)
 # write new slope raster
-raster::writeRaster(barents_slope, 'data/barents_slope_slope.tif', format = 'GTiff', overwrite = TRUE)
+raster::writeRaster(barents_slope, 'data/barents_slope.tif', format = 'GTiff', overwrite = TRUE)
 
 # tifs of aspect
 long_aspect <- raster::terrain(longyear_dem, opt = 'aspect', unit = 'degrees') #calculate aspect

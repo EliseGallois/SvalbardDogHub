@@ -58,7 +58,7 @@ ndvi_point <- raster::extract(ndvi, cord.dec, method='simple',df=TRUE)
 plot(ndvi)
 
 
-#### 3 - LSAT Tool- Doughnut Polygons ####
+#### 3 - LSAT Tool- Doughnut Polygons - ACTIVE YARDS ####
 yard <- vect("data/yard_ring.shp")
 plot(yard)
 
@@ -275,4 +275,16 @@ ggplot(lsat.gs.dt) +
   facet_wrap(vars(yard), scales = "free")
 
 
+#### 4 - LSAT Tool-  Polygons - REF SITES ####
+ref <- vect("data/ref_sites.shp")
+plot(ref)
+
+# create buffer
+buffer <-  terra::buffer(ref, width = 50, quadsegs = 5)
+plot(buffer)
+
+
+# buffer check
+outfile <- 'data/ref_ring.shp'
+writeVector(buffer, outfile, overwrite=TRUE) # yep - plotted it in qgis and we have beautiful beautiful doughnuts
 
