@@ -202,7 +202,8 @@ ggsave('figures/figure_yardring_ndvi_max_evaluation.jpg', width = 6, height = 4,
 fwrite(lsat.gs.dt, 'output/lsat_annual_growing_season_summaries.csv')
 
 # Compute temporal trends in NDVImax
-lsat.trend.dt <- lsat_calc_trend(lsat.gs.dt, si = 'ndvi.max', yrs = 2004:2021, legend.position = c(0.66,0.93))
+lsat.trend.dt <- lsat_calc_trend(lsat.gs.dt, si = 'ndvi.max', yr.tolerance = 1, 
+                                 yrs = 2000:2021,  legend.position = c(0.66,0.93))
 ggsave('figures/figure_yardring_ndvi_max_trend_distribution.jpg', width = 6, height = 8, units = 'in', dpi = 400)
 
 # Convert trend data table to simple feature and write out shapefile
