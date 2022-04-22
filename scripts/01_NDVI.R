@@ -350,8 +350,114 @@ ee_monitoring()
 
 
 # Create a list of data files exported from GEE and then read them in to R as a data.table object 
-data.files <- list.files('data/earth_engine-lsat_refring', full.names = T, pattern = 'ref_bird')
+data.files <- list.files('data/earth_engine-lsat_yardring', full.names = T, pattern = 'ref_bird')
 lsat.dt <- do.call("rbind", lapply(data.files, fread))
+
+
+# Format the exported data
+lsat.dt <- lsat_general_prep(lsat.dt)
+
+# Clean the data by filtering out clouds, snow, and water, as well as radiometric and geometric errors
+lsat.dt <- lsat_clean_data(lsat.dt, geom.max = 15, cloud.max = 80, sza.max = 130, 
+                           filter.cfmask.snow = T, filter.cfmask.water = T, filter.jrc.water = T)
+
+# Summarize the availability of Landsat data for each pixel
+lsat_summarize_data_avail(lsat.dt)
+ggsave('figures/figure_refring_observation_density.jpg', width = 6, height = 4, units = 'in', dpi = 400)
+
+
+# Compute the Normalized Difference Vegetation Index (NDVI)
+lsat.dt <- lsat_calc_spec_index(lsat.dt, si = 'ndvi')
+
+# Cross-calibrate NDVI among sensors using random forest models and overwrite data in the NDVI column  
+lsat.dt <- lsat_calibrate_rf(lsat.dt, band.or.si = 'ndvi', doy.rng = 120:270, 
+                             train.with.highlat.data = T, outdir = 'output/ndvi_xcal_smry_ref/', overwrite.col = T)
+
+# Fit phenological models (cubic splines) to each time series
+lsat.pheno.dt <- lsat_fit_phenological_curves(lsat.dt, si = 'ndvi', test.run = F)
+ggsave('figures/figure_refring_phenological_curves.jpg', width = 9, height = 7, units = 'in', dpi = 400)
+
+# Summarize vegetation index for the "growing season", including estimating annual max vegetation index
+lsat.gs.dt <- lsat_summarize_growing_seasons(lsat.pheno.dt, si = 'ndvi', min.frac.of.max = 0.75)
+
+
+# Evaluate estimates of annual maximum NDVI
+lsat.gs.eval.dt <- lsat_evaluate_phenological_max(lsat.pheno.dt, si = 'ndvi', min.obs = 5, reps = 2, min.frac.of.max = 0.75)
+ggsave('figures/figure_refring_ndvi_max_evaluation.jpg', width = 6, height = 4, units = 'in', dpi = 400)
+
+# Write out data.table with growing season summaries
+fwrite(lsat.gs.dt, 'output/lsat_annual_growing_season_summaries_REF.csv')
+
+# Compute temporal trends in NDVImax
+lsat.trend.dt <- lsat_calc_trend(lsat.gs.dt, si = 'ndvi.max', yr.tolerance = 1, 
+                                 yrs = 1990:2021, nyr.min.frac = 0.4,
+                                 legend.position = c(0.66,0.93))
+ggsave('figures/figure_refring_ndvi_max_trend_distribution.jpg', width = 6, height = 8, units = 'in', dpi = 400)
+
+
+# Convert trend data table to simple feature and write out shapefile
+lsat.trend.sf <- lsat.trend.dt %>% st_as_sf(coords=c('longitude', 'latitude'), crs = st_crs("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"))
+lsat.trend.sf <- lsat.trend.sf %>% st_transform(crs = 3413)
+st_write(lsat.trend.sf, dsn = 'data/lsat_ndvimax_trends_doughnut.shp')
+
+lsat.gs.dt <- lsat.gs.dt %>%
+  mutate(yard = str_after_nth(sample.id, "_", 2)) # new column with yard ID
+
+
+# get mean ndvi.max for each plot
+lsat.gs.dt2 <- lsat.gs.dt %>%
+  group_by(yard) %>%
+  summarise(Mean.nd = mean(ndvi.max))
+
+# NDVImax histogram for each site
+(hist <- ggplot(lsat.gs.dt) +
+    aes(x = ndvi.max) +
+    geom_histogram(bins = 30L, fill = "#1f9e89") +
+    geom_vline(data = lsat.gs.dt2, mapping = aes(xintercept = Mean.nd), colour = "blue", linetype = "dashed") +
+    theme_classic() +
+    facet_wrap(vars(yard)))
+
+
+# NDVI Changes over time
+(ndvi_change <- ggplot(lsat.gs.dt) +
+    aes(x = year, y = ndvi.max, colour = ndvi.max) +
+    geom_point(size = 1L) +
+    geom_smooth(method=lm, color="gold") +
+    scale_color_distiller(palette = "Greens", direction = 1) +
+    labs(x = "Year", y = "NDVI Max", color = "NDVI Max") +
+    theme_classic() +
+    facet_wrap(vars(yard)))
+
+
+lsat.trend.dt <- lsat.trend.dt %>%
+  mutate(yard = str_after_nth(sample.id, "_", 2)) # new column with yard ID
+
+lsat.pheno.dt <- lsat.pheno.dt %>%
+  mutate(yard = str_after_nth(sample.id, "_", 2)) # new column with yard ID
+
+# greening curves by yard
+(curve_yard <- ggplot(lsat.pheno.dt) +
+    aes(x = doy, y = ndvi, colour = year) +
+    geom_point(size = 1L) +
+    scale_color_viridis_c(option = "viridis") +
+    labs(y= 'NDVI ', x='Day of Year') + 
+    theme_classic() +
+    facet_wrap(vars(yard)))
+
+ggplot(lsat.trend.dt) +
+  aes(x = longitude, y = latitude, colour = slope) +
+  geom_point(size = 3L, shape = 15) +
+  scale_color_distiller(palette = "BrBG", direction = -2) +
+  theme_classic() +
+  facet_wrap(vars(yard), scales = "free")
+
+ggplot(lsat.gs.dt) +
+  aes(x = longitude, y = latitude, colour = ndvi.max) +
+  geom_point(size = 3L, shape = 15) +
+  scale_color_gradientn(name = 'NDVI max',  colours = c('gold','grey','green')) + 
+  theme_classic() +
+  facet_wrap(vars(yard), scales = "free")
+
 
 
 
