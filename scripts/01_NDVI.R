@@ -189,6 +189,7 @@ lsat.dt <- lsat_calibrate_rf(lsat.dt, band.or.si = 'ndvi', doy.rng = 120:270,
 # Fit phenological models (cubic splines) to each time series
 lsat.pheno.dt <- lsat_fit_phenological_curves(lsat.dt, si = 'ndvi', test.run = F)
 ggsave('figures/figure_yardring_phenological_curves.jpg', width = 9, height = 7, units = 'in', dpi = 400)
+fwrite(lsat.pheno.dt, 'output/pheno_dog.csv')
 
 # Summarize vegetation index for the "growing season", including estimating annual max vegetation index
 lsat.gs.dt <- lsat_summarize_growing_seasons(lsat.pheno.dt, si = 'ndvi', min.frac.of.max = 0.75)
@@ -377,6 +378,7 @@ lsat.dt <- lsat_calibrate_rf(lsat.dt, band.or.si = 'ndvi', doy.rng = 120:270,
 # Fit phenological models (cubic splines) to each time series
 lsat.pheno.dt <- lsat_fit_phenological_curves(lsat.dt, si = 'ndvi', test.run = F)
 ggsave('figures/figure_refring_phenological_curves.jpg', width = 9, height = 7, units = 'in', dpi = 400)
+fwrite(lsat.pheno.dt, 'output/pheno_ref.csv')
 
 # Summarize vegetation index for the "growing season", including estimating annual max vegetation index
 lsat.gs.dt <- lsat_summarize_growing_seasons(lsat.pheno.dt, si = 'ndvi', min.frac.of.max = 0.75)
@@ -529,6 +531,7 @@ lsat.dt <- lsat_calibrate_rf(lsat.dt, band.or.si = 'ndvi', doy.rng = 120:270,
 # Fit phenological models (cubic splines) to each time series
 lsat.pheno.dt <- lsat_fit_phenological_curves(lsat.dt, si = 'ndvi', test.run = F)
 ggsave('figures/figure_refpig_phenological_curves.jpg', width = 9, height = 7, units = 'in', dpi = 400)
+fwrite(lsat.pheno.dt, 'output/pheno_pig.csv')
 
 # Summarize vegetation index for the "growing season", including estimating annual max vegetation index
 lsat.gs.dt <- lsat_summarize_growing_seasons(lsat.pheno.dt, si = 'ndvi', min.frac.of.max = 0.75)
@@ -632,5 +635,27 @@ ggsave('figures/all_sites_ndvimax_trend.jpg', width = 9, height = 9, units = 'in
 # save csv
 fwrite(sval_green, 'output/lsat_NDVImx_all.csv')
 
+# add in all the pheno datasets
+dog <- read_csv("output/pheno_dog.csv")
+ref <- read_csv("output/pheno_dog.csv")
+pig <- read_csv("output/pheno_pig.csv")
 
+# merge into one big one with all sites
+sval_phen <- rbind(dog, ref, pig)
+
+sval_phen <- sval_phen%>%
+  mutate(site = str_after_nth(sample.id, "_", 2)) # new column with site ID
+
+(curve_yard <- ggplot(sval_phen) +
+    aes(x = doy, y = ndvi, colour = year) +
+    geom_point(size = 1L) +
+    scale_color_viridis_c(option = "viridis") +
+    labs(y= 'NDVI ', x='Day of Year') + 
+    theme_classic() +
+    facet_wrap(vars(site)))
+
+ggsave('figures/all_sites_curve_yard.jpg', width = 9, height = 9, units = 'in', dpi = 400)
+
+# save csv
+fwrite(sval_phen, 'output/lsat_phen_all.csv')
 
