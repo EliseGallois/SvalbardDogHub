@@ -607,6 +607,30 @@ ggplot(lsat.gs.dt) +
   facet_wrap(vars(yard), scales = "free")
 
 
+#### 6 - MERGE ALL SITES TOGETHER ####
+# add in all the gs datasets
+dog <- read_csv("output/lsat_annual_growing_season_summaries.csv")
+ref <- read_csv("output/lsat_annual_growing_season_summaries_REF.csv")
+pig <- read_csv("output/lsat_annual_growing_season_summaries_PIG.csv")
+
+# merge into one big one with all sites
+sval_green <- rbind(dog, ref, pig)
+
+sval_green <- sval_green %>%
+  mutate(site = str_after_nth(sample.id, "_", 2)) # new column with site ID
+
+(all_ndvimax <- ggplot(sval_green) +
+  aes(x = year, y = ndvi.max, colour = ndvi.max) +
+  geom_point(size = 1L) +
+  geom_smooth(method=lm, color="gold") +
+  scale_color_viridis_c(option = "viridis") +
+  labs(x = "Year", y = "NDVImax", title = "NDVI max trends: 1985-2021", color = "NDVImax") +
+  theme_classic() +
+  facet_wrap(vars(site)))
+ggsave('figures/all_sites_ndvimax_trend.jpg', width = 9, height = 9, units = 'in', dpi = 400)
+
+# save csv
+fwrite(sval_green, 'output/lsat_NDVImx_all.csv')
 
 
 
