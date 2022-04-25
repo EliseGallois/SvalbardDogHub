@@ -1,5 +1,9 @@
 #### ELISE GALLOIS  - elise.gallois94@gmail.com 
 
+# This script uses Uses lsatTS package to extract landsat 30x30m NDVI values between 1985-2021
+# Uses lsatTS package to calculate NDVI max and date of NDVI max across all sites
+# We save an NDVImax and Phenology csv for all sites in ' Step 6'
+
 #### 1 - LOAD PACKAGES ####
 library(tidyverse)
 library(esquisse)
