@@ -20,18 +20,25 @@ ggplot(ndvi_max) +
   geom_point(size = 1L) +
   geom_smooth(method=lm, color="gold") +
   scale_color_viridis_c(option = "viridis") +
+  labs(y= 'DOY of NDVImax ', x='Year') + 
   theme_classic() +
   facet_wrap(vars(site))
 
 # plot greening curves for all sites
+pheno$year <- as.factor(pheno$year)
+                        
 (curve_yard <- ggplot(pheno) +
-    aes(x = doy, y = ndvi, colour = year) +
-    geom_point(size = 1L) +
-    geom_smooth(color="red") +
-    scale_color_viridis_c(option = "viridis") +
+    geom_point(aes(x=doy, y=ndvi), 
+                alpha = 0.2, size = 0.1,colour = "grey") +
+    geom_smooth(aes(x=doy, y=ndvi, colour = year, group = sample.id), 
+                span = 0.2, alpha = 0.5, size = 0.5, se = F, show.legend=T) +
+    scale_color_viridis_d(option = "magma") +
     labs(y= 'NDVI ', x='Day of Year') + 
-    theme_classic() +
-    facet_wrap(vars(site)))
+    theme_classic()) +
+    facet_wrap(vars(site))
+  
+  
+ggsave('figures/all_sites_pheno_trend.jpg', width = 9, height = 9, units = 'in', dpi = 400)
 
 
 
