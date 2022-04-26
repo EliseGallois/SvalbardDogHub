@@ -641,7 +641,7 @@ fwrite(sval_green, 'output/lsat_NDVImx_all.csv')
 
 # add in all the pheno datasets
 dog <- read_csv("output/pheno_dog.csv")
-ref <- read_csv("output/pheno_dog.csv")
+ref <- read_csv("output/pheno_ref.csv")
 pig <- read_csv("output/pheno_pig.csv")
 
 # merge into one big one with all sites
@@ -661,5 +661,5 @@ sval_phen <- sval_phen%>%
 ggsave('figures/all_sites_curve_yard.jpg', width = 9, height = 9, units = 'in', dpi = 400)
 
 # save csv
-fwrite(sval_phen, 'output/lsat_phen_all.csv')
+fwrite(sval_phen, 'output/lsat_phen_all.csv') 
 
