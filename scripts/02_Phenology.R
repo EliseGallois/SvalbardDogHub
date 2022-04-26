@@ -14,18 +14,21 @@ library(readr)
 pheno <- read_csv("output/lsat_phen_all.csv") # phenology (large file)
 ndvi_max <- read_csv("output/lsat_NDVImx_all.csv") # ndvimax only (streamlined file)
 
+
+### 3 - EXPLORATORY PLOTS ####
 # rename pyr_pig to HH_pyrpig
 ndvi_max$site <- recode(ndvi_max$site, PYR_pig = 'HH_pyrpig')
-                        
+ndvi_max$site <- recode(ndvi_max$site, PYR_pig = 'HH_pyrpig')
+
 # subset into types
 ndvi_group <- ndvi_max %>% 
   mutate(type = substr(site, start = 1, stop = 2)) %>% 
   mutate(quantile = ntile(ndvi.max, 3)) %>% 
   mutate(quantile = as.factor(quantile))
 
-ndvi_group$quantile <- recode(ndvi_group$quantile, 1 = 'Low NDVImax')
-ndvi_group$quantile <- recode(ndvi_group$quantile, 2 = 'Mid NDVImax')
-ndvi_group$quantile <- recode(ndvi_group$quantile, 3 = 'hiGH NDVImax')
+ndvi_group$quantile <- recode(ndvi_group$quantile, '1' = 'Low NDVImax')
+ndvi_group$quantile <- recode(ndvi_group$quantile, '2' = 'Mid NDVImax')
+ndvi_group$quantile <- recode(ndvi_group$quantile, '3' = 'High NDVImax')
 
 
 # plot ndvi max change by quantile
@@ -56,7 +59,7 @@ ggplot(ndvi_max) +
   geom_smooth(method=lm, color="gold") +
   scale_color_viridis_c(option = "viridis") +
   labs(y= 'DOY of NDVImax ', x='Year') + 
-  theme_classic()
+  theme_classic() 
 
 
 ggplot(ndvi_max) +
@@ -64,7 +67,7 @@ ggplot(ndvi_max) +
   geom_point(size = 1L) +
   geom_smooth(method=lm, color="gold") +
   scale_color_viridis_c(option = "viridis") +
-  labs(y= 'DOY of NDVImax ', x='Year') + 
+  labs(y= 'Annual NDVImax ', x='Year') + 
   theme_classic()
 
 
@@ -85,16 +88,53 @@ pheno$year <- as.factor(pheno$year)
 ggsave('figures/all_sites_pheno_trend.jpg', width = 9, height = 9, units = 'in', dpi = 400)
 
 
-# get mean ndvi.max for each plot
+# get mean ndvi.max doy for each plot
 lsat.gs.dt2 <- ndvi_max %>%
   group_by(site) %>%
-  summarise(Mean.nd = mean(ndvi.max))
+  summarise(Mean.nd = mean(ndvi.max.doy))
 
 (hist <- ggplot(ndvi_max) +
-    aes(x = ndvi.max) +
+    aes(x = ndvi.max.doy) +
     geom_histogram(bins = 30L, fill = "#1f9e89") +
     geom_vline(data = lsat.gs.dt2, mapping = aes(xintercept = Mean.nd), colour = "blue", linetype = "dashed") +
     theme_classic() +
     facet_wrap(vars(site)))
+
+#### 4 - PHENOLOGY ANALYSIS ####
+# get mean ndvi.max  for each site and year
+pheno_av <- ndvi_group %>%
+  group_by(site, year) %>%
+  summarise_at(vars(ndvi.max), list(name = mean_ndvixmax))
+yearly.means <- ddply(ndvi_group,c("site","year"),summarise,mean=mean(ndvi.max))
+
+# yearly trends per site
+(annual.plot <- ggplot(yearly.means) +
+  geom_point(aes(x = year, y = mean, colour = site), alpha = 0.5, size = 2) +
+  geom_line(aes(x = year, y = mean, colour = site), alpha = 0.5, size = 0.5) +
+  geom_smooth(method=lm, aes(x = year, y = mean, colour = site, fill = site), alpha = 0.2, show.legend=F) + 
+  ylab("Annual Max. NDVI\n") +
+  xlab("Year") +
+    scale_color_viridis_d(option = "viridis") +
+    scale_fill_viridis_d(option = "viridis") +
+  theme_classic() +
+    facet_wrap(vars(site)))
+ggsave('figures/all_sites_ndvimax_annual.jpg', width = 9, height = 9, units = 'in', dpi = 400)
+
+# get mean ndvi.max DOY  for each site and year
+
+pheno.yearly.means <- ddply(ndvi_group,c("site","year"),summarise,mean=mean(ndvi.max.doy))
+
+# yearly trends per site
+(annual.plot.pheno <- ggplot(pheno.yearly.means) +
+    geom_point(aes(x = year, y = mean, colour = site), alpha = 0.5, size = 2) +
+    geom_line(aes(x = year, y = mean, colour = site), alpha = 0.5, size = 0.5) +
+    geom_smooth(method=lm, aes(x = year, y = mean, colour = site, fill = site), alpha = 0.2, show.legend=F) + 
+    ylab("Annual Max. NDVI DOY\n") +
+    xlab("Year") +
+    scale_color_viridis_d(option = "viridis") +
+    scale_fill_viridis_d(option = "viridis") +
+    theme_classic() +
+    facet_wrap(vars(site)))
+ggsave('figures/all_sites_ndvidoy_annual.jpg', width = 9, height = 9, units = 'in', dpi = 400)
 
 
