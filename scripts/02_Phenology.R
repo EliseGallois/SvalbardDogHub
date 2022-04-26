@@ -137,4 +137,21 @@ pheno.yearly.means <- ddply(ndvi_group,c("site","year"),summarise,mean=mean(ndvi
     facet_wrap(vars(site)))
 ggsave('figures/all_sites_ndvidoy_annual.jpg', width = 9, height = 9, units = 'in', dpi = 400)
 
+ndvi_group$year <- as.factor(ndvi_group$year)
+
+ndvi_group %>%
+  filter(site %in% c("DY_3", "BC_skans", "REF_tem", "BC_Oss")) %>%
+  ggplot() +
+  aes(x = year, y = ndvi.max.doy, fill = year, alpha = 0.6) +
+  geom_boxplot() +
+  geom_jitter(size = 1, alpha = 0.6, width = 0.2, aes(color = year)) +
+  scale_fill_hue() +
+  scale_color_hue() +
+  theme_classic() +
+  theme(axis.text.x = element_text(size = 12, angle = 45, vjust = 1, hjust = 1)) +
+  facet_wrap(vars(site)) 
+
+
+
+
 
