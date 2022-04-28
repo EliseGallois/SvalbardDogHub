@@ -141,6 +141,8 @@ ndvi_group$year <- as.factor(ndvi_group$year)
 
 ndvi_group %>%
   filter(site %in% c("DY_3", "BC_skans", "REF_tem", "BC_Oss")) %>%
+  filter(year %in% c("1998", "1999" ,"2000", "2001", "2002", "2003", "2004",
+  "2005", "2006", "2007", "2008")) %>%
   ggplot() +
   aes(x = year, y = ndvi.max.doy, fill = year, alpha = 0.6) +
   geom_boxplot() +
