@@ -9,6 +9,8 @@ library(raster)
 library(viridis)
 library(readxl)
 library(readr)
+library(ggrepel)
+
 
 #### 2 - LOAD DATA ####
 pheno <- read_csv("output/lsat_phen_all.csv") # phenology (large file)
@@ -24,7 +26,8 @@ ndvi_max$site <- recode(ndvi_max$site, PYR_pig = 'HH_pyrpig')
 ndvi_group <- ndvi_max %>% 
   mutate(type = substr(site, start = 1, stop = 2)) %>% 
   mutate(quantile = ntile(ndvi.max, 3)) %>% 
-  mutate(quantile = as.factor(quantile))
+  mutate(quantile = as.factor(quantile)) %>% 
+  filter(ndvi.max >= 0.35 & ndvi.max <= 1) 
 
 ndvi_group$quantile <- recode(ndvi_group$quantile, '1' = 'Low NDVImax')
 ndvi_group$quantile <- recode(ndvi_group$quantile, '2' = 'Mid NDVImax')
@@ -89,11 +92,11 @@ ggsave('figures/all_sites_pheno_trend.jpg', width = 9, height = 9, units = 'in',
 
 
 # get mean ndvi.max doy for each plot
-lsat.gs.dt2 <- ndvi_max %>%
+lsat.gs.dt2 <- ndvi_group %>%
   group_by(site) %>%
   summarise(Mean.nd = mean(ndvi.max.doy))
 
-(hist <- ggplot(ndvi_max) +
+(hist <- ggplot(ndvi_group) +
     aes(x = ndvi.max.doy) +
     geom_histogram(bins = 30L, fill = "#1f9e89") +
     geom_vline(data = lsat.gs.dt2, mapping = aes(xintercept = Mean.nd), colour = "blue", linetype = "dashed") +
@@ -141,8 +144,18 @@ ndvi_group$year <- as.factor(ndvi_group$year)
 
 ndvi_group %>%
   filter(site %in% c("DY_3", "BC_skans", "REF_tem", "BC_Oss")) %>%
-  filter(year %in% c("1998", "1999" ,"2000", "2001", "2002", "2003", "2004",
-  "2005", "2006", "2007", "2008")) %>%
+  ggplot() +
+  aes(x = year, y = ndvi.max.doy, fill = year, alpha = 0.6) +
+  geom_boxplot() +
+  geom_jitter(size = 1, alpha = 0.6, width = 0.2, aes(color = year)) +
+  scale_fill_hue() +
+  scale_color_hue() +
+  theme_classic() +
+  theme(axis.text.x = element_text(size = 12, angle = 45, vjust = 1, hjust = 1)) +
+  facet_wrap(vars(site)) 
+
+ndvi_group %>%
+  filter(site %in% c("DY_3")) %>%
   ggplot() +
   aes(x = year, y = ndvi.max.doy, fill = year, alpha = 0.6) +
   geom_boxplot() +
@@ -154,6 +167,19 @@ ndvi_group %>%
   facet_wrap(vars(site)) 
 
 
+dy3_max <- ndvi_cut %>%
+ filter(site %in% "BC_skans") %>%
+ ggplot() +
+ aes(x = year, y = ndvi.max.doy, colour = sample.id) +
+ geom_line(size = 1L) +
+ scale_color_hue() +
+  xlim(2004,2025) +
+ labs(x = "Year", y = "DOY of NDVImax", title = "DOY Peak Greenness") +
+ theme_classic() +
+  geom_dl(aes(label = sample.id), method = list(dl.combine("last.points")), cex = 2) +
+  theme(plot.margin = margin(1,1,1.5,1.2, "cm"))
 
+
+(dy3_max + guides(color = FALSE, size = FALSE))
 
 
