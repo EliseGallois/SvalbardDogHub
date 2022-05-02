@@ -10,6 +10,7 @@ library(viridis)
 library(readxl)
 library(readr)
 library(ggrepel)
+library(plyr)
 
 
 #### 2 - LOAD DATA ####
@@ -27,8 +28,10 @@ ndvi_group <- ndvi_max %>%
   mutate(type = substr(site, start = 1, stop = 2)) %>% 
   mutate(quantile = ntile(ndvi.max, 3)) %>% 
   mutate(quantile = as.factor(quantile)) %>% 
-  filter(ndvi.max >= 0.35 & ndvi.max <= 1) 
+  filter(ndvi.max.doy >= 121 & ndvi.max.doy <= 244) # between START OF MAY and END OF AUGUST
 
+
+# calculate quantiles of NDVImax
 ndvi_group$quantile <- recode(ndvi_group$quantile, '1' = 'Low NDVImax')
 ndvi_group$quantile <- recode(ndvi_group$quantile, '2' = 'Mid NDVImax')
 ndvi_group$quantile <- recode(ndvi_group$quantile, '3' = 'High NDVImax')
@@ -56,7 +59,7 @@ ggplot(ndvi_group) +
 
 
 # plot all 'date of 'NDVImax'
-ggplot(ndvi_max) +
+ggplot(ndvi_group) +
   aes(x = year, y = ndvi.max.doy, colour = ndvi.max) +
   geom_point(size = 1L) +
   geom_smooth(method=lm, color="gold") +
@@ -65,7 +68,7 @@ ggplot(ndvi_max) +
   theme_classic() 
 
 
-ggplot(ndvi_max) +
+ggplot(ndvi_group) +
   aes(x = year, y = ndvi.max, colour = ndvi.max) +
   geom_point(size = 1L) +
   geom_smooth(method=lm, color="gold") +
@@ -94,7 +97,7 @@ ggsave('figures/all_sites_pheno_trend.jpg', width = 9, height = 9, units = 'in',
 # get mean ndvi.max doy for each plot
 lsat.gs.dt2 <- ndvi_group %>%
   group_by(site) %>%
-  summarise(Mean.nd = mean(ndvi.max.doy))
+  summarise(Mean.nd = median(ndvi.max.doy))
 
 (hist <- ggplot(ndvi_group) +
     aes(x = ndvi.max.doy) +
@@ -103,7 +106,7 @@ lsat.gs.dt2 <- ndvi_group %>%
     theme_classic() +
     facet_wrap(vars(site)))
 
-#### 4 - PHENOLOGY ANALYSIS ####
+#### 4 - PHENOLOGY TRENDS PLOTS ####
 # get mean ndvi.max  for each site and year
 pheno_av <- ndvi_group %>%
   group_by(site, year) %>%
@@ -143,19 +146,7 @@ ggsave('figures/all_sites_ndvidoy_annual.jpg', width = 9, height = 9, units = 'i
 ndvi_group$year <- as.factor(ndvi_group$year)
 
 ndvi_group %>%
-  filter(site %in% c("DY_3", "BC_skans", "REF_tem", "BC_Oss")) %>%
-  ggplot() +
-  aes(x = year, y = ndvi.max.doy, fill = year, alpha = 0.6) +
-  geom_boxplot() +
-  geom_jitter(size = 1, alpha = 0.6, width = 0.2, aes(color = year)) +
-  scale_fill_hue() +
-  scale_color_hue() +
-  theme_classic() +
-  theme(axis.text.x = element_text(size = 12, angle = 45, vjust = 1, hjust = 1)) +
-  facet_wrap(vars(site)) 
-
-ndvi_group %>%
-  filter(site %in% c("DY_3")) %>%
+  filter(site %in% c("DY_4")) %>%
   ggplot() +
   aes(x = year, y = ndvi.max.doy, fill = year, alpha = 0.6) +
   geom_boxplot() +
@@ -167,19 +158,6 @@ ndvi_group %>%
   facet_wrap(vars(site)) 
 
 
-dy3_max <- ndvi_cut %>%
- filter(site %in% "BC_skans") %>%
- ggplot() +
- aes(x = year, y = ndvi.max.doy, colour = sample.id) +
- geom_line(size = 1L) +
- scale_color_hue() +
-  xlim(2004,2025) +
- labs(x = "Year", y = "DOY of NDVImax", title = "DOY Peak Greenness") +
- theme_classic() +
-  geom_dl(aes(label = sample.id), method = list(dl.combine("last.points")), cex = 2) +
-  theme(plot.margin = margin(1,1,1.5,1.2, "cm"))
-
-
-(dy3_max + guides(color = FALSE, size = FALSE))
+#### 5 - PHENOLOGY TRENDS MODELS ####
 
 
