@@ -11,6 +11,8 @@ library(readxl)
 library(readr)
 library(ggrepel)
 library(plyr)
+library(lme4)
+library(sjPlot)
 
 
 #### 2 - LOAD DATA ####
@@ -19,9 +21,10 @@ ndvi_max <- read_csv("output/lsat_NDVImx_all.csv") # ndvimax only (streamlined f
 
 
 ### 3 - EXPLORATORY PLOTS ####
-# rename pyr_pig to HH_pyrpig
+# rename pyr_pig to HH_pyrpig, and 
 ndvi_max$site <- recode(ndvi_max$site, PYR_pig = 'HH_pyrpig')
-ndvi_max$site <- recode(ndvi_max$site, PYR_pig = 'HH_pyrpig')
+ndvi_max$site <- recode(ndvi_max$site, REF_tem = 'BC_tem')
+
 
 # subset into types
 ndvi_group <- ndvi_max %>% 
@@ -143,12 +146,12 @@ pheno.yearly.means <- ddply(ndvi_group,c("site","year"),summarise,mean=mean(ndvi
     facet_wrap(vars(site)))
 ggsave('figures/all_sites_ndvidoy_annual.jpg', width = 9, height = 9, units = 'in', dpi = 400)
 
-ndvi_group$year <- as.factor(ndvi_group$year)
+ndvi_group$year_fac <- as.factor(ndvi_group$year)
 
 ndvi_group %>%
   filter(site %in% c("DY_4")) %>%
   ggplot() +
-  aes(x = year, y = ndvi.max.doy, fill = year, alpha = 0.6) +
+  aes(x = year_fac, y = ndvi.max.doy, fill = year, alpha = 0.6) +
   geom_boxplot() +
   geom_jitter(size = 1, alpha = 0.6, width = 0.2, aes(color = year)) +
   scale_fill_hue() +
@@ -159,5 +162,37 @@ ndvi_group %>%
 
 
 #### 5 - PHENOLOGY TRENDS MODELS ####
+ndvi_group$year <- as.numeric(ndvi_group$year)
+ndvi_group$year.scaled <- scale(I(ndvi_group$year - 1984), center = T)
+
+# ndvi max doy change over time
+ndvi_max_m <- lmer(ndvi.max.doy ~ year.scaled + (year.scaled|type),
+                   data = ndvi_group)
+summary(ndvi_max_m)
+
+
+# Visualises random effects
+(re.effects <- plot_model(ndvi_max_m, type = "re", show.values = TRUE))
+
+
+# Using model predict for the tern_m model outputs and plotting the predictions
+ggpredict(ndvi_max_m, terms = c("year.scaled", "type")) %>% plot()
+
+predictions <- ggpredict(ndvi_max_m, terms = c("year.scaled"), type = "random") 
+
+
+(ggplot(predictions) + 
+   geom_line(aes(x = x, y = predicted)) + 
+   geom_ribbon(data = predictions, aes(ymin = conf.low, ymax = conf.high, x = x), 
+               alpha = 0.5, fill = "grey") + 
+   geom_point(data = ndvi_group, aes(x = year.scaled, y = ndvi.max.doy, colour = type)) +
+   labs(x = "\nYear", y = "NDVImax (Landsat Surveys 30m Resolution) \n", title = "NDVImax Change over Time (1985-2021)\n", colour = "Land Use Type") +
+   theme_minimal() +
+   theme(plot.title = element_text(size = 16, hjust = 0.5), # formats the title, font size 15, centres it, and moves it upwards from the graph
+         plot.margin = unit(c(1,1,1,1), units = , "cm"),  # adds 1 cm margin around the figure) 
+         legend.position = "right")) # positions the legend below the graph
+
+
+
 
 
