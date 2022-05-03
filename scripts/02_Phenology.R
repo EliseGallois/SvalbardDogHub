@@ -13,6 +13,9 @@ library(ggrepel)
 library(plyr)
 library(lme4)
 library(sjPlot)
+library(stargazer)
+library(report)
+library(scales)
 
 
 #### 2 - LOAD DATA ####
@@ -165,10 +168,19 @@ ndvi_group %>%
 ndvi_group$year <- as.numeric(ndvi_group$year)
 ndvi_group$year.scaled <- scale(I(ndvi_group$year - 1984), center = T)
 
+
 # ndvi max doy change over time
-ndvi_max_m <- lmer(ndvi.max.doy ~ year.scaled + (year.scaled|type),
+ndvi_max_m <- lmer(ndvi.max.doy ~ year.scaled*type + (1|site),
                    data = ndvi_group)
 summary(ndvi_max_m)
+anova(ndvi_max_m)
+
+
+stargazer(ndvi_max_m, type = "html",
+          digits = 3,
+          star.cutoffs = c(0.05, 0.01, 0.001),
+          digit.separator = "")
+tab_model(ndvi_max_m)
 
 
 # Visualises random effects
@@ -176,22 +188,63 @@ summary(ndvi_max_m)
 
 
 # Using model predict for the tern_m model outputs and plotting the predictions
-ggpredict(ndvi_max_m, terms = c("year.scaled", "type")) %>% plot()
+ggpredict(ndvi_max_m, terms = c("year.scaled", "type"),type = "re") %>% plot()
 
-predictions <- ggpredict(ndvi_max_m, terms = c("year.scaled"), type = "random") 
+predictions <- ggpredict(ndvi_max_m, terms = c("year.scaled", "type"), type = "re") 
 
+# rescale year
+predictions$year <- rescale(predictions$x, to = c(1985, 2021))
 
 (ggplot(predictions) + 
-   geom_line(aes(x = x, y = predicted)) + 
-   geom_ribbon(data = predictions, aes(ymin = conf.low, ymax = conf.high, x = x), 
-               alpha = 0.5, fill = "grey") + 
-   geom_point(data = ndvi_group, aes(x = year.scaled, y = ndvi.max.doy, colour = type)) +
-   labs(x = "\nYear", y = "NDVImax (Landsat Surveys 30m Resolution) \n", title = "NDVImax Change over Time (1985-2021)\n", colour = "Land Use Type") +
-   theme_minimal() +
+   geom_line(aes(x = year, y = predicted, colour = group), size = 1) + 
+   #geom_ribbon(data = predictions, aes(ymin = conf.low, ymax = conf.high, x = year, fill = group), 
+               #alpha = 0.2) + 
+   geom_point(data = ndvi_group, 
+              aes(x = year, y = ndvi.max.doy, colour = type), alpha = 0.5) +
+    scale_colour_manual(values = c("#65CF7E", "#EB9C1D", "#1BC4DE", "#D997F7", "#BD403E"))+
+    scale_fill_manual(values = c("#65CF7E", "#EB9C1D", "#1BC4DE", "#D997F7", "#BD403E"))+
+   labs(x = "\nYear", y = "NDVImax DOY (Landsat Surveys 30m Resolution) \n", title = "NDVImax DOY Change over Time (1985-2021)\n", colour = "Land Use Type") +
+   theme_classic() +
    theme(plot.title = element_text(size = 16, hjust = 0.5), # formats the title, font size 15, centres it, and moves it upwards from the graph
          plot.margin = unit(c(1,1,1,1), units = , "cm"),  # adds 1 cm margin around the figure) 
          legend.position = "right")) # positions the legend below the graph
 
+
+
+# ndvi max doy change over time
+greening_m <- lmer(ndvi.max ~ year.scaled*type + (1|site),
+                   data = ndvi_group)
+summary(greening_m)
+anova(greening_m)
+
+tab_model(greening_m)
+
+
+# Visualises random effects
+(re.effects <- plot_model(greening_m, type = "re", show.values = TRUE))
+
+
+# Using model predict for the tern_m model outputs and plotting the predictions
+ggpredict(greening_m, terms = c("year.scaled", "type"),type = "re") %>% plot()
+
+predictions <- ggpredict(greening_m, terms = c("year.scaled", "type"), type = "re") 
+
+# rescale year
+predictions$year <- rescale(predictions$x, to = c(1985, 2021))
+
+(ggplot(predictions) + 
+    geom_line(aes(x = year, y = predicted, colour = group), size = 1) + 
+    #geom_ribbon(data = predictions, aes(ymin = conf.low, ymax = conf.high, x = year, fill = group), 
+    #alpha = 0.2) + 
+    geom_point(data = ndvi_group, 
+               aes(x = year, y = ndvi.max, colour = type), alpha = 0.5) +
+    scale_colour_manual(values = c("#65CF7E", "#EB9C1D", "#1BC4DE", "#D997F7", "#BD403E"))+
+    scale_fill_manual(values = c("#65CF7E", "#EB9C1D", "#1BC4DE", "#D997F7", "#BD403E"))+
+    labs(x = "\nYear", y = "NDVImax  (Landsat Surveys 30m Resolution) \n", title = "NDVImax Change over Time (1985-2021)\n", colour = "Land Use Type") +
+    theme_classic() +
+    theme(plot.title = element_text(size = 16, hjust = 0.5), # formats the title, font size 15, centres it, and moves it upwards from the graph
+          plot.margin = unit(c(1,1,1,1), units = , "cm"),  # adds 1 cm margin around the figure) 
+          legend.position = "right")) # positions the legend below the graph
 
 
 
