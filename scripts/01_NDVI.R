@@ -22,6 +22,7 @@ library(stringr)
 library(rgee)
 library(strex)
 library(geojsonio)
+library(phenex)
 
 # connect R to the GEE
 ee_Initialize()
@@ -175,7 +176,7 @@ lsat.dt <- do.call("rbind", lapply(data.files, fread))
 lsat.dt <- lsat_general_prep(lsat.dt)
 
 # Clean the data by filtering out clouds, snow, and water, as well as radiometric and geometric errors
-lsat.dt <- lsat_clean_data(lsat.dt, geom.max = 15, cloud.max = 80, sza.max = 130, 
+lsat.dt <- lsat_clean_data(lsat.dt, geom.max = 15, cloud.max = 80, sza.max = 130,
                            filter.cfmask.snow = T, filter.cfmask.water = T, filter.jrc.water = T)
 
 # Summarize the availability of Landsat data for each pixel
@@ -187,7 +188,7 @@ ggsave('figures/figure_yardring_observation_density.jpg', width = 6, height = 4,
 lsat.dt <- lsat_calc_spec_index(lsat.dt, si = 'ndvi')
 
 # Cross-calibrate NDVI among sensors using random forest models and overwrite data in the NDVI column  
-lsat.dt <- lsat_calibrate_rf(lsat.dt, band.or.si = 'ndvi', doy.rng = 120:270, 
+lsat.dt <- lsat_calibrate_rf(lsat.dt, band.or.si = 'ndvi', doy.rng = 120:240, 
                              train.with.highlat.data = T, outdir = 'output/ndvi_xcal_smry/', overwrite.col = T)
 
 # Fit phenological models (cubic splines) to each time series
