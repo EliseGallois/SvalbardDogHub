@@ -22,7 +22,6 @@ library(stringr)
 library(rgee)
 library(strex)
 library(geojsonio)
-library(phenex)
 
 # connect R to the GEE
 ee_Initialize()
@@ -302,6 +301,7 @@ plot(ref_poly$geometry)
 ref_poly$region <- paste0("unique_id_", 1:nrow(ref_poly))
 
 ref_poly$region <- as.factor(ref_poly$region)
+colnames(ref_poly)
 
 #reorder columns
 ref_poly <- ref_poly[, c(1,4,5)]
@@ -613,6 +613,82 @@ ggplot(lsat.gs.dt) +
   scale_color_gradientn(name = 'NDVI max',  colours = c('gold','grey','green')) + 
   theme_classic() +
   facet_wrap(vars(yard), scales = "free")
+
+
+## Extra ref sites ##
+
+ref <- vect("data/extra_ref.shp")
+plot(ref)
+
+# create buffer
+buffer <-  terra::buffer(ref, width = 50, quadsegs = 5)
+plot(buffer)
+
+
+# buffer check
+outfile <- 'data/extra_ring.shp'
+writeVector(buffer, outfile, overwrite=TRUE) # yep - plotted it in qgis and looks good!
+
+# now re-read in file as a sf object and send to GEE
+ref_poly <- read_sf('data/extra_ring.shp')
+
+plot(ref_poly$geometry)
+ref_poly$site <- paste("REF_",  (ref_poly$reference_))
+
+ref_poly$region <- paste0("unique_id_", 1:nrow(ref_poly))
+
+ref_poly$region <- as.factor(ref_poly$region)
+
+colnames(ref_poly)
+#reorder columns
+ref_poly <- ref_poly[, c(8,7,9,2)]
+
+# make sure all in lat/lon
+ref_poly <- ref_poly %>% st_transform(crs = 4326)
+
+# split
+REF_col <- subset(ref_poly, site == "REF_ Colesbukta")
+REF_odin <- subset(ref_poly, site == "REF_ Odindalen")
+REF_gron <- subset(ref_poly, site == "REF_ Grøndalen")
+REF_rein <- subset(ref_poly, site == "REF_ Reindalen")
+REF_bolt <- subset(ref_poly, site == "REF_ Bolterdalen")
+REF_lein <- subset(ref_poly, site == "REF_ Leinstrandodden")
+
+
+# Use lsat_get_pixel_centers to retrieve pixel centers and plot to a file that can be added to this documentation.
+# We set plot_map to a file path (or just TRUE) to view 
+REF_col_poly <- lsat_get_pixel_centers(REF_col, buffer = 0, plot_map = T, lsat_WRS2_scene_bounds = "data/WRS-2_bound_world_0.kml")
+REF_odin_poly <- lsat_get_pixel_centers(REF_odin, buffer = 0, plot_map = T, lsat_WRS2_scene_bounds = "data/WRS-2_bound_world_0.kml")
+REF_gron_poly <- lsat_get_pixel_centers(REF_gron, buffer = 0, plot_map = T, lsat_WRS2_scene_bounds = "data/WRS-2_bound_world_0.kml")
+REF_rein_poly <- lsat_get_pixel_centers(REF_rein, buffer = 0, plot_map = T, lsat_WRS2_scene_bounds = "data/WRS-2_bound_world_0.kml")
+REF_bolt_poly <- lsat_get_pixel_centers(REF_bolt, buffer = 0, plot_map = T, lsat_WRS2_scene_bounds = "data/WRS-2_bound_world_0.kml")
+REF_lein_poly <- lsat_get_pixel_centers(REF_lein, buffer = 0, plot_map = T, lsat_WRS2_scene_bounds = "data/WRS-2_bound_world_0.kml")
+
+
+
+# add "_key" to sample_ID
+REF_col_poly$sample_id <- paste((REF_col_poly$sample_id), "_REF_col")
+REF_odin_poly$sample_id <- paste((REF_odin_poly$sample_id), "_REF_odin")
+REF_gron_poly$sample_id <- paste((REF_gron_poly$sample_id), "_REF_gron")
+REF_rein_poly$sample_id <- paste((REF_rein_poly$sample_id), "_REF_rein")
+REF_bolt_poly$sample_id <- paste((REF_bolt_poly$sample_id), "_REF_bolt")
+REF_lein_poly$sample_id <- paste((REF_lein_poly$sample_id), "_REF_lein")
+
+
+# Bind Rows
+
+ref_ring_pix <- bind_rows(REF_col_poly, REF_odin_poly, REF_gron_poly, REF_rein_poly,
+                          REF_bolt_poly, REF_lein_poly)
+
+
+# Extract a time-series of Landsat surface reflectance measurements for each Landsat pixel
+task_list <- lsat_export_ts(pixel_coords_sf = ref_ring_pix, startJulian = 120, endJulian = 273,
+                            file_prefix = 'ref_bird', drive_export_dir = 'earth_engine/lsat_refextraring')
+
+# check status
+ee_monitoring()
+
+
 
 
 #### 6 - MERGE ALL SITES TOGETHER ####
