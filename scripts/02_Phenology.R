@@ -30,7 +30,7 @@ DOY.data <- function(year, DOY, NDVI) {
   names(y) <- c("DOY", "NDVI")
   if(leapYears(year[1])==TRUE){
     x <- cbind.data.frame(seq(1, 366))
-    names(x) <- c("NDVI")
+    names(x) <- c("DOY")
     z <- merge(x, y, all.x = TRUE, all.y = TRUE)
   } else {
     x <- cbind.data.frame(seq(1, 365))
@@ -43,12 +43,19 @@ DOY.data <- function(year, DOY, NDVI) {
 # pheno data cleaning
 pheno_data <- pheno %>% 
   filter(!is.na(ndvi)) %>% 
-  mutate(NDVI=ndvi/1000) %>% 
-  filter(year < 2022)
+  mutate(NDVI=ndvi) %>% 
+  filter(year < 2022) 
 
 # Reformat MODIS data
 pheno.data <- pheno_data %>% 
-  dplyr::select(site = sample.id, NDVI, DOY = doy, year)
+  dplyr::select(site = site, NDVI, DOY = doy, year)
+
+pheno.data <- ddply(pheno.data,c("site","year","DOY"),summarise,NDVI=mean(NDVI))
+
+# Reformat MODIS data
+pheno.data <- cbind.data.frame(site = as.character(pheno.data$site), 
+                               NDVI = as.numeric(pheno.data$NDVI), 
+                               DOY = pheno.data$DOY, year = pheno.data$year) 
 
 # Add zeros
 num.years <- max(pheno.data$year) - min(pheno.data$year) + 1
@@ -68,15 +75,15 @@ site <- arrange(site, site)
 zero.data <- cbind.data.frame(site, year, DOY, NDVI)
 
 pheno.data <- rbind(pheno.data, zero.data)
-pheno.data$DOY <- as.numeric(pheno.data$DOY)
-pheno.data$NDVI_percent <- as.numeric(pheno.data$NDVI)
-
+
 # run DOY function to create vectors for modelNDVI
 greenup <- pheno.data %>% group_by(site, year) %>% 
-  do(., DOY.data(.$year, .$DOY, .$NDVI_percent))
+  do(., DOY.data(.$year, .$DOY, .$NDVI))
 
 # run modelNDVI function - takes a while
-greenup.all <- greenup %>% 
+# run modelNDVI function - takes a while
+# run modelNDVI function - takes a while
+greenup.all <- pheno.data %>% 
   # group by site and year
   group_by(site, year) %>% 
   # apply modelNDVI function
@@ -97,8 +104,7 @@ greenup.all <- greenup %>%
     senescence.date.95 = phenoPhase(ndvi.values[[1]], phase="senescence", method="local", threshold=0.95)$mean,
     gs.length.05 = senescence.date.05 - greenup.date.05,
     gs.length.50 = senescence.date.50 - greenup.date.50,
-    gs.length.95 = senescence.date.95 - greenup.date.95,
-    test = list(ndvi.values[[1]])
+    gs.length.95 = senescence.date.95 - greenup.date.95
     #, integrateTimeserie = integrateTimeserie(ndvi.values[[1]][[1]], start=greenup.date.50, end=senescence.date.50, n=1000)
   )
 
