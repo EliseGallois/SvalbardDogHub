@@ -731,7 +731,7 @@ fwrite(lsat.gs.dt, 'output/lsat_annual_growing_season_summaries_REFextra.csv')
 
 # Compute temporal trends in NDVImax
 lsat.trend.dt <- lsat_calc_trend(lsat.gs.dt, si = 'ndvi.max', yr.tolerance = 1, 
-                                 yrs = 1990:2021, nyr.min.frac = 0.4,
+                                 yrs = 2004:2021, nyr.min.frac = 0.4,
                                  legend.position = c(0.66,0.93))
 ggsave('figures/figure_extraring_ndvi_max_trend_distribution.jpg', width = 6, height = 8, units = 'in', dpi = 400)
 
