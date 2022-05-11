@@ -23,131 +23,13 @@ library(phenex)
 pheno <- read_csv("output/lsat_phen_all.csv") # phenology (large file)
 ndvi_max <- read_csv("output/lsat_NDVImx_all.csv") # ndvimax only (streamlined file)
 
-#### 3 - EXTRACT PHENOPHASES#### 
-# DOY Function ----
-DOY.data <- function(year, DOY, NDVI) {
-  y <- cbind.data.frame(DOY, NDVI)
-  names(y) <- c("DOY", "NDVI")
-  if(leapYears(year[1])==TRUE){
-    x <- cbind.data.frame(seq(1, 366))
-    names(x) <- c("DOY")
-    z <- merge(x, y, all.x = TRUE, all.y = TRUE)
-  } else {
-    x <- cbind.data.frame(seq(1, 365))
-    names(x) <- c("DOY")
-    z <- merge(x, y, all.x = TRUE, all.y = TRUE)
-  }
-  return(z)
-}
-
-# pheno data cleaning
-pheno_data <- pheno %>% 
-  filter(!is.na(ndvi)) %>% 
-  mutate(NDVI=ndvi) %>% 
-  filter(year < 2022) 
-
-# Reformat MODIS data
-pheno.data <- pheno_data %>% 
-  dplyr::select(site = site, NDVI, DOY = doy, year)
 
 
-# Reformat MODIS data
-pheno.data <- cbind.data.frame(site = as.character(pheno.data$site), 
-                               NDVI = as.numeric(pheno.data$NDVI), 
-                               DOY = pheno.data$DOY, year = pheno.data$year) 
-
-# Add zeros
-num.years <- max(pheno.data$year) - min(pheno.data$year) + 1
-num.sites <- length(unique(pheno.data$site))
-
-DOY <- cbind.data.frame(DOY = rep(c(rep(1, num.years), 
-                                    rep(32, num.years), 
-                                    rep(60, num.years), 
-                                    rep(305, num.years), 
-                                    rep(335, num.years)), 
-                                  num.sites))
-
-NDVI <- cbind.data.frame(NDVI = rep(0, length(DOY$DOY)))
-year <- cbind.data.frame(year = rep(rep(seq(min(pheno.data$year), max(pheno.data$year)), 5), num.sites))
-site <- cbind.data.frame(site = rep(rep(as.character(unique(pheno.data$site)), 5), num.years))
-site <- arrange(site, site)
-zero.data <- cbind.data.frame(site, year, DOY, NDVI)
-
-pheno.data <- rbind(pheno.data, zero.data)
-
-# run DOY function to create vectors for modelNDVI
-greenup <- pheno.data %>% group_by(site, year) %>% 
-  do(., DOY.data(.$year, .$DOY, .$NDVI))
-
-# run modelNDVI function - takes a while
-# run modelNDVI function - takes a while
-# run modelNDVI function - takes a while
-greenup.all <- pheno.data %>% 
-  # group by site and year
-  group_by(site, year) %>% 
-  # apply modelNDVI function
-  do(., ndvi.values = unlist(modelNDVI(ndvi.values=.$NDVI, year.int=.$year, correction='none', method="DLogistic", MARGIN=2, multipleSeasons=FALSE, doParallel=FALSE, silent=TRUE))) %>%
-  # Save just the DOY and modelledValues in individual columns of the tibble for plotting
-  mutate(modVal = ifelse(leapYears(year[1])==TRUE, 
-                         list(cbind(DOY = seq(1:366), modVal = modelledValues(ndvi.values[[1]]))), 
-                         list(cbind(DOY = seq(1:365), modVal = modelledValues(ndvi.values[[1]])))
-  )) %>% 
-  # create phenoPhase dates and max NDVI
-  mutate(
-    greenup.date.05 = phenoPhase(ndvi.values[[1]], phase="greenup", method="local", threshold=0.05)$mean, 
-    greenup.date.50 = phenoPhase(ndvi.values[[1]], phase="greenup", method="local", threshold=0.50)$mean, 
-    greenup.date.95 = phenoPhase(ndvi.values[[1]], phase="greenup", method="local", threshold=0.95)$mean, 
-    ndvi.date.max = phenoPhase(ndvi.values[[1]], phase="maxval", method="local")$mean, 
-    senescence.date.05 = phenoPhase(ndvi.values[[1]], phase="senescence", method="local", threshold=0.05)$mean, 
-    senescence.date.50 = phenoPhase(ndvi.values[[1]], phase="senescence", method="local", threshold=0.50)$mean, 
-    senescence.date.95 = phenoPhase(ndvi.values[[1]], phase="senescence", method="local", threshold=0.95)$mean,
-    gs.length.05 = senescence.date.05 - greenup.date.05,
-    gs.length.50 = senescence.date.50 - greenup.date.50,
-    gs.length.95 = senescence.date.95 - greenup.date.95
-    #, integrateTimeserie = integrateTimeserie(ndvi.values[[1]][[1]], start=greenup.date.50, end=senescence.date.50, n=1000)
-  )
-
-save(greenup.all, file = "data/greenup.all.RData")
-
-greenup.greenup <- greenup.all %>% dplyr::select(site, year, greenup.date.05, greenup.date.50, greenup.date.95)
-greenup.max <- greenup.all %>% dplyr::select(site, year, ndvi.date.max)
-greenup.scen <- greenup.all %>% dplyr::select(site, year, senescence.date.05, senescence.date.50, senescence.date.95)
-greenup.GSL <- greenup.all %>% dplyr::select(site, year, greenup.date.50, senescence.date.50, gs.length.50)
-greenup.modVal <- greenup.all %>% dplyr::select(site, year, modVal) %>% group_by(site, year) %>% mutate(DOY = list(modVal[[1]][,1]), modVal = list(modVal[[1]][,2])) %>% unnest()
-#greenup.modVal <-  merge(greenup, greenup.modVal)
-
-#  greenup trends - by site ----
-ggplot(greenup.greenup) +
-  geom_point(aes(x = year, y = greenup.date.05), colour = "#c1e3a3", alpha = 0.5, size = 2) +
-  geom_point(aes(x = year, y = greenup.date.50), colour = "#64B91B", alpha = 0.5, size = 2) +
-  geom_point(aes(x = year, y = greenup.date.95), colour = "#468112", alpha = 0.5, size = 2) +
-  geom_line(aes(x = year, y = greenup.date.05), colour = "#c1e3a3", alpha = 0.5, size = 0.5) +
-  geom_line(aes(x = year, y = greenup.date.50), colour = "#64B91B", alpha = 0.5, size = 0.5) +
-  geom_line(aes(x = year, y = greenup.date.95), colour = "#468112", alpha = 0.5, size = 0.5) +
-  facet_wrap( ~ site, ncol=5) +
-  geom_smooth(method=lm, aes(x = year, y = greenup.date.05), colour = "#c1e3a3", fill = "#c1e3a3", alpha = 0.2, show.legend=F) +
-  geom_smooth(method=lm, aes(x = year, y = greenup.date.50), colour = "#64B91B", fill = "#64B91B", alpha = 0.2, show.legend=F) +  
-  geom_smooth(method=lm, aes(x = year, y = greenup.date.95), colour = "#468112", fill = "#468112", alpha = 0.2, show.legend=F) +
-  ylab("Landsat NDVI green up dates\n") +
-  xlab("Time (years)") +
-  theme_bw() +
-  theme(panel.border = element_blank(),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        axis.line = element_line(colour = "black"),
-        axis.title = element_text(size = 14),
-        axis.text.x = element_text(angle = 90, vjust = 0.5, size = 12, colour = "black"),
-        axis.text.y = element_text(size = 12, colour = "black"))
-ggsave("figures/landsat_greenup.png", width = 7, height = 7, units = "in", dpi = 300)
-
-
-
-
-
-### 4 - EXPLORATORY PLOTS ####
+### 3 - EXPLORATORY PLOTS ####
 # rename pyr_pig to HH_pyrpig, and 
 ndvi_max$site <- recode(ndvi_max$site, PYR_pig = 'HH_pyrpig')
 ndvi_max$site <- recode(ndvi_max$site, REF_tem = 'BC_tem')
+pheno$site <- recode(pheno$site, REF_tem = 'BC_tem')
 
 
 # subset into types
@@ -182,7 +64,6 @@ ggplot(ndvi_group) +
   scale_colour_manual(values = c("#65CF7E", "#EB9C1D", "#1BC4DE", "#D997F7", "#BD403E"))+
   labs(y= 'Annual NDVImax ', x='Year', title = "Annual NDVImax Change by Land Use Type") + 
   theme_classic() 
-
 
 
 # plot all 'date of 'NDVImax'
