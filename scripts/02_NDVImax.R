@@ -50,7 +50,6 @@ pheno_data <- pheno %>%
 pheno.data <- pheno_data %>% 
   dplyr::select(site = site, NDVI, DOY = doy, year)
 
-pheno.data <- ddply(pheno.data,c("site","year","DOY"),summarise,NDVI=mean(NDVI))
 
 # Reformat MODIS data
 pheno.data <- cbind.data.frame(site = as.character(pheno.data$site), 
