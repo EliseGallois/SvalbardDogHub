@@ -43,6 +43,12 @@ splines50a <- splines50 %>%
     greenup = dplyr::first(doy),
     senescence = dplyr::last(doy)) 
   
+# range between greenup and senescence
+splines50a$range<-(splines50a$senescence-splines50a$greenup)
+
+# remove any range <5
+splines50a <- splines50a[which(splines50a$range >= 5),]
+
   
 # wide data  
 thresh50 <-  pivot_longer(splines50a,cols = c("greenup", "senescence"),
@@ -75,6 +81,11 @@ splines25a <- splines25 %>%
     greenup = dplyr::first(doy),
     senescence = dplyr::last(doy)) 
 
+# range between greenup and senescence
+splines25a$range<-(splines25a$senescence-splines25a$greenup)
+
+# remove any range <5
+splines25a <- splines25a[which(splines25a$range >= 5),]
 
 # long data  
 thresh25 <-  pivot_longer(splines25a,cols = c("greenup", "senescence"),
