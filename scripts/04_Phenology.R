@@ -92,26 +92,26 @@ thresh25 = thresh25[!duplicated(thresh25$site_doy_id),]
 (greenup50 <- ggplot(thresh50) +
     geom_point(aes(x = year, y = phase_doy, colour = phase), alpha = 0.5, size = 2) +
     geom_smooth(method=lm, aes(x = year,  y = phase_doy, colour = phase))) + 
-    ylab("Green-Up DOY (50% of Maximum Curviture) \n") +
+    ylab("Phenophase DOY (50% of Maximum Curviture) \n") +
     xlab("Year") +
     scale_color_viridis_d(option = "viridis") +
     scale_fill_viridis_d(option = "viridis") +
     theme_classic() +
   facet_wrap(vars(type))
+ggsave('figures/50_sen_ts.jpg', width = 9, height = 5, units = 'in', dpi = 400)
+
 
 (greenup25 <- ggplot(thresh25) +
     geom_point(aes(x = year, y = phase_doy, colour = phase), alpha = 0.5, size = 2) +
     geom_smooth(method=lm, aes(x = year,  y = phase_doy, colour = phase))) + 
-  ylab("Green-Up DOY (25% of Maximum Curviture) \n") +
+  ylab("Phenophase DOY (25% of Maximum Curviture) \n") +
   xlab("Year") +
   scale_color_viridis_d(option = "viridis") +
   scale_fill_viridis_d(option = "viridis") +
   theme_classic() +
   facet_wrap(vars(type))
+ggsave('figures/25_sen_ts.jpg', width = 9, height = 5, units = 'in', dpi = 400)
 
 
-
-
-(greenup <- grid.arrange(greenup25, greenup50, ncol = 1))
 
 
