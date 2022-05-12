@@ -22,78 +22,96 @@ as_tibble(head(pheno))
 pheno$site <- recode(pheno$site, PYR_pig = 'HH_pyrpig')
 pheno$site <- recode(pheno$site, REF_tem = 'BC_tem')
 
-# calulate NDVI RATIO
-thresh25 <- pheno %>% 
+
+#### 50% ####
+splines50 <- pheno %>% 
   mutate(type = substr(site, start = 1, stop = 2)) %>%    # get land use type classification 
   mutate(Year = lubridate::ymd(year, truncated = 2L)) %>%  # set year to date type
-  mutate(unique_id  = paste(site,year)) %>% 
-  dplyr::group_by(Year, site) %>% 
-  dplyr::mutate(threshold = as.numeric(((ndvi - 0)/(max(ndvi) - 0)))) %>%  # calculate NDVI ratio (NDVImin set as 0 == snow cover)
-  mutate(ratio = round(threshold, digits = 2)) %>% 
-  filter(ratio == 0.25) %>% #get only the first row
-  slice(1) %>%
-  distinct(unique_id, .keep_all= TRUE) %>% # remove duplicate rows
-  ungroup() 
+  mutate(unique_id  = paste(sample.id,year)) %>% 
+  dplyr::group_by(Year, sample.id) %>% 
+  mutate(ratio = round(spl.fit, digits = 2)) %>% 
+  filter(ratio == 0.38)
 
-thresh50 <- pheno %>% 
+
+splines50a <- splines50 %>% 
+  mutate(site_doy_id  = paste(unique_id,doy)) %>% 
+  distinct(site_doy_id, .keep_all= TRUE) %>% # remove duplicate rows
+  subset(ave(unique_id, unique_id, FUN = length) > 1) %>% 
+  dplyr::group_by(unique_id) %>% 
+  arrange(doy) %>% 
+  dplyr::mutate(
+    greenup = dplyr::first(doy),
+    senescence = dplyr::last(doy)) 
+  
+  
+# wide data  
+thresh50 <-  pivot_longer(splines50a,cols = c("greenup", "senescence"),
+               names_to = "phase",
+               values_to = "phase_doy")  
+
+# identify duplicate rows
+thresh50$site_doy_id <- paste(thresh50$site_doy_id,thresh50$phase)
+
+# remove duplicate rows
+thresh50 = thresh50[!duplicated(thresh50$site_doy_id),]
+   
+#### 25% ####
+splines25 <- pheno %>% 
   mutate(type = substr(site, start = 1, stop = 2)) %>%    # get land use type classification 
   mutate(Year = lubridate::ymd(year, truncated = 2L)) %>%  # set year to date type
-  mutate(unique_id  = paste(site,year)) %>% 
-  dplyr::group_by(Year, site) %>% 
-  dplyr::mutate(threshold = as.numeric(((ndvi - 0)/(max(ndvi) - 0)))) %>%  # calculate NDVI ratio (NDVImin set as 0 == snow cover)
-  mutate(ratio = round(threshold, digits = 2)) %>% 
-  filter(ratio == 0.5) %>% #get only the first row
-  slice(1) %>%
-  distinct(unique_id, .keep_all= TRUE) %>% # remove duplicate rows
-  ungroup() 
-
-thresh75 <- pheno %>% 
-  mutate(type = substr(site, start = 1, stop = 2)) %>%    # get land use type classification 
-  mutate(Year = lubridate::ymd(year, truncated = 2L)) %>%  # set year to date type
-  mutate(unique_id  = paste(site,year)) %>% 
-  dplyr::group_by(Year, site) %>% 
-  dplyr::mutate(threshold = as.numeric(((ndvi - 0)/(max(ndvi) - 0)))) %>%  # calculate NDVI ratio (NDVImin set as 0 == snow cover)
-  mutate(ratio = round(threshold, digits = 2)) %>% 
-  filter(ratio == 0.75) %>% #get only the first row
-  slice(1) %>%
-  distinct(unique_id, .keep_all= TRUE) %>% # remove duplicate rows
-  ungroup() 
+  mutate(unique_id  = paste(sample.id,year)) %>% 
+  dplyr::group_by(Year, sample.id) %>% 
+  mutate(ratio = round(spl.fit, digits = 2)) %>% 
+  filter(ratio == 0.19)
 
 
-# MEAN DOY GREEN-UP STATS
-mean(thresh25$doy) # 25% = 181 aka 1st July
-mean(thresh50$doy) # 50% = 196 aka 15th July
-mean(thresh75$doy) # 75% = 211 aka 30th July
+splines25a <- splines25 %>% 
+  mutate(site_doy_id  = paste(unique_id,doy)) %>% 
+  distinct(site_doy_id, .keep_all= TRUE) %>% # remove duplicate rows
+  subset(ave(unique_id, unique_id, FUN = length) > 1) %>% 
+  dplyr::group_by(unique_id) %>% 
+  arrange(doy) %>% 
+  dplyr::mutate(
+    greenup = dplyr::first(doy),
+    senescence = dplyr::last(doy)) 
 
+
+# long data  
+thresh25 <-  pivot_longer(splines25a,cols = c("greenup", "senescence"),
+                          names_to = "phase",
+                          values_to = "phase_doy")  
+
+# identify duplicate rows
+thresh25$site_doy_id <- paste(thresh25$site_doy_id,thresh25$phase)
+
+# remove duplicate rows
+thresh25 = thresh25[!duplicated(thresh25$site_doy_id),]
 
 # yearly trends per site 
-(greenup25 <- ggplot(thresh25) +
-    geom_point(aes(x = year, y = doy, colour = type), alpha = 0.5, size = 2) +
-    geom_smooth(method=lm, aes(x = year, y = doy)) + 
-    ylab("Green-Up DOY (25% of Maximum Curviture) \n") +
-    xlab("Year") +
-    scale_color_viridis_d(option = "viridis") +
-    scale_fill_viridis_d(option = "viridis") +
-    theme_classic())
 
 (greenup50 <- ggplot(thresh50) +
-    geom_point(aes(x = year, y = doy, colour = type), alpha = 0.5, size = 2) +
-    geom_smooth(method=lm, aes(x = year, y = doy)) + 
+    geom_point(aes(x = year, y = phase_doy, colour = phase), alpha = 0.5, size = 2) +
+    geom_smooth(method=lm, aes(x = year,  y = phase_doy, colour = phase))) + 
     ylab("Green-Up DOY (50% of Maximum Curviture) \n") +
     xlab("Year") +
     scale_color_viridis_d(option = "viridis") +
     scale_fill_viridis_d(option = "viridis") +
-    theme_classic())
+    theme_classic() +
+  facet_wrap(vars(type))
 
-(greenup75 <- ggplot(thresh75) +
-    geom_point(aes(x = year, y = doy, colour = type), alpha = 0.5, size = 2) +
-    geom_smooth(method=lm, aes(x = year, y = doy)) + 
-    ylab("Green-Up DOY (75% of Maximum Curviture) \n") +
-    xlab("Year") +
-    scale_color_viridis_d(option = "viridis") +
-    scale_fill_viridis_d(option = "viridis") +
-    theme_classic())
+(greenup25 <- ggplot(thresh25) +
+    geom_point(aes(x = year, y = phase_doy, colour = phase), alpha = 0.5, size = 2) +
+    geom_smooth(method=lm, aes(x = year,  y = phase_doy, colour = phase))) + 
+  ylab("Green-Up DOY (25% of Maximum Curviture) \n") +
+  xlab("Year") +
+  scale_color_viridis_d(option = "viridis") +
+  scale_fill_viridis_d(option = "viridis") +
+  theme_classic() +
+  facet_wrap(vars(type))
 
-(greenup <- grid.arrange(greenup25, greenup50, greenup75, ncol = 1))
+
+
+
+(greenup <- grid.arrange(greenup25, greenup50, ncol = 1))
 
 
