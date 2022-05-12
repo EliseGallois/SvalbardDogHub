@@ -189,9 +189,10 @@ lsat.dt <- lsat_calc_spec_index(lsat.dt, si = 'ndvi')
 # Cross-calibrate NDVI among sensors using random forest models and overwrite data in the NDVI column  
 lsat.dt <- lsat_calibrate_rf(lsat.dt, band.or.si = 'ndvi', doy.rng = 120:240, 
                              train.with.highlat.data = T, outdir = 'output/ndvi_xcal_smry/', overwrite.col = T)
+fwrite(lsat.dt, 'output/Apheno_dog.csv')
 
 # Fit phenological models (cubic splines) to each time series
-lsat.pheno.dt <- lsat_fit_phenological_curves(lsat.dt, si = 'ndvi', test.run = F)
+lsat.pheno.dt <- lsat_fit_phenological_curves(lsat.dt, si = 'ndvi', window.min.obs = 4, test.run = F)
 ggsave('figures/figure_yardring_phenological_curves.jpg', width = 9, height = 7, units = 'in', dpi = 400)
 fwrite(lsat.pheno.dt, 'output/pheno_dog.csv')
 
@@ -379,6 +380,7 @@ lsat.dt <- lsat_calc_spec_index(lsat.dt, si = 'ndvi')
 # Cross-calibrate NDVI among sensors using random forest models and overwrite data in the NDVI column  
 lsat.dt <- lsat_calibrate_rf(lsat.dt, band.or.si = 'ndvi', doy.rng = 120:270, 
                              train.with.highlat.data = T, outdir = 'output/ndvi_xcal_smry_ref/', overwrite.col = T)
+fwrite(lsat.dt, 'output/Apheno_ref.csv')
 
 # Fit phenological models (cubic splines) to each time series
 lsat.pheno.dt <- lsat_fit_phenological_curves(lsat.dt, si = 'ndvi', test.run = F)
@@ -532,6 +534,7 @@ lsat.dt <- lsat_calc_spec_index(lsat.dt, si = 'ndvi')
 # Cross-calibrate NDVI among sensors using random forest models and overwrite data in the NDVI column  
 lsat.dt <- lsat_calibrate_rf(lsat.dt, band.or.si = 'ndvi', doy.rng = 120:270, 
                              train.with.highlat.data = T, outdir = 'output/ndvi_xcal_smry_pig/', overwrite.col = T)
+fwrite(lsat.dt, 'output/Apheno_pig.csv')
 
 # Fit phenological models (cubic splines) to each time series
 lsat.pheno.dt <- lsat_fit_phenological_curves(lsat.dt, si = 'ndvi', test.run = F)
@@ -712,6 +715,7 @@ lsat.dt <- lsat_calc_spec_index(lsat.dt, si = 'ndvi')
 # Cross-calibrate NDVI among sensors using random forest models and overwrite data in the NDVI column  
 lsat.dt <- lsat_calibrate_rf(lsat.dt, band.or.si = 'ndvi', doy.rng = 120:270, 
                              train.with.highlat.data = T, outdir = 'output/ndvi_xcal_smry_ref/', overwrite.col = T)
+fwrite(lsat.dt, 'output/Apheno_refextra.csv')
 
 # Fit phenological models (cubic splines) to each time series
 lsat.pheno.dt <- lsat_fit_phenological_curves(lsat.dt, si = 'ndvi', test.run = F)
@@ -849,4 +853,31 @@ ggsave('figures/all_sites_curve_yard.jpg', width = 9, height = 9, units = 'in', 
 
 # save csv
 fwrite(sval_phen, 'output/lsat_phen_all.csv') 
+
+
+
+# add in all the pheno datasets
+dog <- read_csv("output/Apheno_dog.csv")
+ref <- read_csv("output/Apheno_ref.csv")
+ref_x <- read_csv("output/Apheno_refextra.csv")
+pig <- read_csv("output/Apheno_pig.csv")
+
+# merge into one big one with all sites
+sval_phen <- rbind(dog, ref,ref_x, pig)
+
+sval_phen <- sval_phen %>%
+  mutate(site = str_after_nth(sample.id, "_", 2)) # new column with site ID
+
+(curve_yard <- ggplot(sval_phen) +
+    aes(x = doy, y = ndvi, colour = year) +
+    geom_point(size = 1L) +
+    scale_color_viridis_c(option = "viridis") +
+    labs(y= 'NDVI ', x='Day of Year') + 
+    theme_classic() +
+    facet_wrap(vars(site)))
+
+ggsave('figures/all_sites_curve_yard.jpg', width = 9, height = 9, units = 'in', dpi = 400)
+
+# save csv
+fwrite(sval_phen, 'output/raw_phen_all.csv')
 
