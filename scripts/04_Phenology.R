@@ -9,9 +9,11 @@ library(gridExtra)
 library(tidyverse)
 library(plyr)
 library(lubridate)
-library(gridExtra)
-
-
+library(lme4)
+library(ggeffects)
+library(sjPlot)
+library(scales)
+        
 #### 2 - LOAD DATA ####
 pheno <- read.csv("output/raw_phen_all.csv") # phenology (large file)
 as_tibble(head(pheno))
@@ -108,19 +110,63 @@ thresh25 = thresh25[!duplicated(thresh25$site_doy_id),]
 ##### 5 - PLOT TRENDS BY TYPE ####
 
 # yearly trends per site 
-(greenup25 <- ggplot(thresh25) +
+(greenup50 <- ggplot(thresh50) +
     geom_point(aes(x = year, y = phase_doy, colour = phase), alpha = 0.5, size = 2) +
     geom_smooth(method=lm, aes(x = year,  y = phase_doy, fill = phase, colour = phase))) + 
-    ylab("Phenophase DOY (25% of Maximum Curviture) \n") +
+    ylab("Phenophase DOY (50% of Maximum Curviture) \n") +
     xlab("Year") +
   # xlim(2004,2021) +
     scale_color_manual(values = c("#09E88F", "#E0C707")) +
    scale_fill_manual(values = c("#09E88F", "#E0C707")) +
   theme_classic() +
   facet_wrap(vars(type))
-ggsave('figures/25_sen_ts.jpg', width = 9, height = 5, units = 'in', dpi = 400)
+ggsave('figures/50_sen_ts.jpg', width = 9, height = 5, units = 'in', dpi = 400)
 
 
 ##### 6 - MODEL PHENOLOGY CHANGE ####
+thresh50$year <- as.numeric(thresh50$year)
+thresh50$year.scaled <- scale(I(thresh50$year - 1984), center = T)
+
+
+# ndvi max doy change over time
+ndvi_max_m <- lmer(phase_doy ~ year.scaled*type + phase + (1|site),
+                   data = thresh50)
+summary(ndvi_max_m)
+anova(ndvi_max_m)
+tab_model(ndvi_max_m)
+
+# Visualises random effects
+(re.effects <- plot_model(ndvi_max_m, type = "re", show.values = TRUE))
+
+
+# Using model predict for the tern_m model outputs and plotting the predictions
+ggpredict(ndvi_max_m, terms = c("year.scaled","phase", "type"),type = "re") %>% plot()
+
+predictions <- ggpredict(ndvi_max_m, terms = c("year.scaled", "phase","type"), type = "re") 
+
+# rescale year
+predictions$year <- rescale(predictions$x, to = c(1985, 2021))
+
+(ggplot(predictions) + 
+    geom_line(aes(x = year, y = predicted, colour = group), size = 1) + 
+    geom_ribbon(data = predictions, aes(ymin = conf.low, ymax = conf.high, x = year, fill = group), 
+    alpha = 0.2) + 
+    geom_point(data = thresh50, 
+               aes(x = year, y = phase_doy, colour = phase),  alpha = 0.1) +
+    scale_colour_manual(values = c("#09E88F", "#E0C707"))+
+    scale_fill_manual(values = c("#09E88F", "#E0C707"))+
+    labs(x = "\nYear", y = "Phenophase DOY (50% of Maximum Curviture) \n", title = "Phenology Change over Time (1985-2021)\n", colour = "Phenophase") +
+    theme_classic() +
+    facet_wrap(vars(type)) +
+    theme(plot.title = element_text(size = 16, hjust = 0.5), # formats the title, font size 15, centres it, and moves it upwards from the graph
+          plot.margin = unit(c(1,1,1,1), units = , "cm"),  # adds 1 cm margin around the figure) 
+          legend.position = "right")) # positions the legend below the graph
+
+
+
+
+
+
+
 
 
