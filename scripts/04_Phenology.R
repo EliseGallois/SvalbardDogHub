@@ -128,44 +128,82 @@ ggsave('figures/50_sen_ts.jpg', width = 9, height = 5, units = 'in', dpi = 400)
 
 ##### 6 - MODEL PHENOLOGY CHANGE ####
 thresh50$year <- as.numeric(thresh50$year)
-thresh50$year.scaled <- scale(I(thresh50$year - 1984), center = T)
+thresh50$year.scaled <- scale(I(thresh50$year - 1984), center = 0)
+
+# filter for greenup
+green <- thresh50 %>% 
+  filter(phase %in% "greenup")
+
+# filter for senescence
+senesc <- thresh50 %>% 
+  filter(phase %in% "senescence")
+
+# ndvi max doy change over time
+greenup_m <- lmer(phase_doy ~ -1 + year.scaled*type +  (1|site),
+                   data = thresh50)
+summary(greenup_m)
+tab_model(greenup_m)
+
+# Visualises random effects
+(re.effects <- plot_model(ndvi_max_m,  show.values = TRUE))
+
 
 
 # ndvi max doy change over time
-# year as random effect??????????????
-ndvi_max_m <- lmer(phase_doy ~ year.scaled*type + phase + (1|site),
-                   data = thresh50)
-summary(ndvi_max_m)
-anova(ndvi_max_m)
-tab_model(ndvi_max_m)
+senesc_m <- lmer(phase_doy ~ -1 + year.scaled*type +  (1|site),
+                  data = senesc)
+summary(senesc_m)
+tab_model(senesc_m)
 
 # Visualises random effects
-(re.effects <- plot_model(ndvi_max_m, type = "re", show.values = TRUE))
+(re.effects <- plot_model(senesc_m,  show.values = TRUE))
+
 
 
 # Using model predict for the tern_m model outputs and plotting the predictions
-ggpredict(ndvi_max_m, terms = c("year.scaled","phase", "type"),type = "re") %>% plot()
+ggpredict(greenup_m, terms = c("year.scaled", "type"),type = "re") %>% plot()
 
-predictions <- ggpredict(ndvi_max_m, terms = c("year.scaled", "phase","type"), type = "re") 
+predictions <- ggpredict(greenup_m, terms = c("year.scaled","type"), type = "re") 
 
 # rescale year
-predictions$year <- rescale(predictions$x, to = c(1985, 2021))
+predictions$year <- scales::rescale(predictions$x, to = c(1985, 2021))
 
 (ggplot(predictions) + 
     geom_line(aes(x = year, y = predicted, colour = group), size = 1) + 
     geom_ribbon(data = predictions, aes(ymin = conf.low, ymax = conf.high, x = year, fill = group), 
-    alpha = 0.2) + 
-    geom_point(data = phen50, 
-               aes(x = year, y = phase_doy, colour = phase),  alpha = 0.1) +
-    scale_colour_manual(values = c("#09E88F", "#E0C707"))+
-    scale_fill_manual(values = c("#09E88F", "#E0C707"))+
-    labs(x = "\nYear", y = "Phenophase DOY (50% of Maximum Curviture) \n", title = "Phenology Change over Time (1985-2021)\n", colour = "Phenophase") +
+    alpha = 0.1) + 
+    geom_point(data = green, 
+               aes(x = year, y = phase_doy, colour = type),  alpha = 0.4) +
+    scale_colour_manual(values = c("#65CF7E", "#EB9C1D", "#1BC4DE", "#D997F7", "#BD403E"))+
+    scale_fill_manual(values = c("#65CF7E", "#EB9C1D", "#1BC4DE", "#D997F7", "#BD403E"))+
+    labs(x = "\nYear", y = "Green-up DOY (50% of Maximum Curviture) \n", title = "Green-up Change over Time (1985-2021)\n", colour = "Phenophase") +
     theme_classic() +
-    facet_wrap(vars(type)) +
     theme(plot.title = element_text(size = 16, hjust = 0.5), # formats the title, font size 15, centres it, and moves it upwards from the graph
           plot.margin = unit(c(1,1,1,1), units = , "cm"),  # adds 1 cm margin around the figure) 
           legend.position = "right")) # positions the legend below the graph
 
+
+# Using model predict for the tern_m model outputs and plotting the predictions
+ggpredict(senesc_m, terms = c("year.scaled", "type"),type = "re") %>% plot()
+
+predictions <- ggpredict(senesc_m, terms = c("year.scaled","type"), type = "re") 
+
+# rescale year
+predictions$year <- scales::rescale(predictions$x, to = c(1985, 2021))
+
+(ggplot(predictions) + 
+    geom_line(aes(x = year, y = predicted, colour = group), size = 1) + 
+    geom_ribbon(data = predictions, aes(ymin = conf.low, ymax = conf.high, x = year, fill = group), 
+                alpha = 0.1) + 
+    geom_point(data = senesc, 
+               aes(x = year, y = phase_doy, colour = type),  alpha = 0.4) +
+    scale_colour_manual(values = c("#65CF7E", "#EB9C1D", "#1BC4DE", "#D997F7", "#BD403E"))+
+    scale_fill_manual(values = c("#65CF7E", "#EB9C1D", "#1BC4DE", "#D997F7", "#BD403E"))+
+    labs(x = "\nYear", y = "Senescence DOY (50% of Maximum Curviture) \n", title = "Senescence Change over Time (1985-2021)\n", colour = "Phenophase") +
+    theme_classic() +
+    theme(plot.title = element_text(size = 16, hjust = 0.5), # formats the title, font size 15, centres it, and moves it upwards from the graph
+          plot.margin = unit(c(1,1,1,1), units = , "cm"),  # adds 1 cm margin around the figure) 
+          legend.position = "right")) # positions the legend below the graph
 
 #### NDVImax from Raw ####
 
@@ -176,8 +214,8 @@ splinesmax <- pheno %>%
   mutate(unique_id  = paste(sample.id,year)) %>% 
   dplyr::group_by(unique_id) %>% 
   dplyr::mutate(ratio = max(ndvi)) %>% 
-  mutate(ratio = round(ratio, digits = 1)) %>% 
-  mutate(ndvi = round(ndvi, digits = 1)) %>%
+  #mutate(ratio = round(ratio, digits = 1)) %>% 
+  #mutate(ndvi = round(ndvi, digits = 1)) %>%
   filter(ndvi == ratio) 
 
 
@@ -207,9 +245,29 @@ maxi <- splinesmax %>%
   scale_color_viridis_c(option = "viridis") +
   theme_classic() +
   facet_wrap(vars(site))
+
+(max_ndvi <- ggplot(maxi) +
+    geom_point(aes(x = year, y = ndvi, colour = ndvi), alpha = 0.5, size = 2) +
+    geom_smooth(method=lm, aes(x = year,  y = ndvi), colour = "gold")) + 
+  ylab("NDVImax \n") +
+  xlab("Year") +
+  scale_color_viridis_c(option = "viridis") +
+  theme_classic() +
+  facet_wrap(vars(type))
+
 ggsave('figures/50_sen_ts.jpg', width = 9, height = 5, units = 'in', dpi = 400)
 
 
+# scale year variable (can be rescaled later)
+maxi$year <- as.numeric(maxi$year)
+maxi$year.scaled <- scale(I(maxi$year - 1984), center = T)
 
+
+# ndvi max doy change over time
+ndvi_max_m <- lmer(ndvi ~ -1 + year.scaled*type + (1|site),
+                   data = maxi)
+
+summary(ndvi_max_m)
+tab_model(ndvi_max_m)
 
 
