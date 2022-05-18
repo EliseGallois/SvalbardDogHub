@@ -63,7 +63,7 @@ plot(ndvi)
 
 
 #### 3 - LSAT Tool- Doughnut Polygons - ACTIVE YARDS ####
-yard <- vect("data/yard_ring.shp")
+yard <- vect("data/yard_para.shp")
 plot(yard)
 
 # create buffer
