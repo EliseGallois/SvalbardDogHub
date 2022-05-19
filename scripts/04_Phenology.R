@@ -13,6 +13,8 @@ library(lme4)
 library(ggeffects)
 library(sjPlot)
 library(scales)
+library('ggthemes')
+
         
 #### 2 - LOAD DATA ####
 pheno <- read.csv("output/raw_phen_all.csv") # phenology (large file)
@@ -139,18 +141,19 @@ senesc <- thresh50 %>%
   filter(phase %in% "senescence")
 
 # ndvi max doy change over time
-greenup_m <- lmer(phase_doy ~ -1 + year.scaled*type +  (1|site),
+greenup_m <- lmer(phase_doy ~ -1 + I(year - 1984)*type +  (1|site),
                    data = thresh50)
 summary(greenup_m)
+
 tab_model(greenup_m)
 
 # Visualises random effects
-(re.effects <- plot_model(ndvi_max_m,  show.values = TRUE))
+(re.effects <- plot_model(greenup_m,  show.values = TRUE))
 
 
 
 # ndvi max doy change over time
-senesc_m <- lmer(phase_doy ~ -1 + year.scaled*type +  (1|site),
+senesc_m <- lmer(phase_doy ~ -1 + I(year - 1984)*type +  (1|site),
                   data = senesc)
 summary(senesc_m)
 tab_model(senesc_m)
@@ -161,7 +164,7 @@ tab_model(senesc_m)
 
 
 # Using model predict for the tern_m model outputs and plotting the predictions
-ggpredict(greenup_m, terms = c("year.scaled", "type"),type = "re") %>% plot()
+ggpredict(greenup_m, terms = c("year", "type"),type = "re") %>% plot()
 
 predictions <- ggpredict(greenup_m, terms = c("year.scaled","type"), type = "re") 
 
@@ -243,8 +246,13 @@ maxi <- splinesmax %>%
   ylab("NDVImax \n") +
   xlab("Year") +
   scale_color_viridis_c(option = "viridis") +
+  facet_wrap(vars(site), scales='free') +
   theme_classic() +
-  facet_wrap(vars(site))
+  theme(axis.line=element_line()) +
+  scale_x_continuous(limits=c(1985,2021)) + scale_y_continuous(limits=c(0,0.85))
+
+
+
 
 (max_ndvi <- ggplot(maxi) +
     geom_point(aes(x = year, y = ndvi, colour = ndvi), alpha = 0.5, size = 2) +
@@ -253,6 +261,7 @@ maxi <- splinesmax %>%
   xlab("Year") +
   scale_color_viridis_c(option = "viridis") +
   theme_classic() +
+  scale_x_continuous(limits=c(1985,2021)) + scale_y_continuous(limits=c(0,0.85)) +
   facet_wrap(vars(type))
 
 ggsave('figures/50_sen_ts.jpg', width = 9, height = 5, units = 'in', dpi = 400)
@@ -264,10 +273,33 @@ maxi$year.scaled <- scale(I(maxi$year - 1984), center = T)
 
 
 # ndvi max doy change over time
-ndvi_max_m <- lmer(ndvi ~ -1 + year.scaled*type + (1|site),
+ndvi_max_m <- lmer(ndvi ~ -1 + I(year - 1984)*type + (1|site),
                    data = maxi)
 
 summary(ndvi_max_m)
 tab_model(ndvi_max_m)
 
+# Visualises random effects
+(re.effects <- plot_model(ndvi_max_m,  show.values = TRUE))
 
+
+
+# Using model predict for the tern_m model outputs and plotting the predictions
+ggpredict(ndvi_max_m, terms = c("year", "type"),type = "re") %>% plot()
+
+predictions <- ggpredict(ndvi_max_m, terms = c("year.scaled","type"), type = "re") 
+
+
+(ggplot(predictions) + 
+    geom_line(aes(x = year, y = predicted, colour = group), size = 1) + 
+    geom_ribbon(data = predictions, aes(ymin = conf.low, ymax = conf.high, x = year, fill = group), 
+                alpha = 0.1) + 
+    geom_point(data = maxi, 
+               aes(x = year, y = ndvi, colour = type),  alpha = 0.4) +
+    scale_colour_manual(values = c("#65CF7E", "#EB9C1D", "#1BC4DE", "#D997F7", "#BD403E"))+
+    scale_fill_manual(values = c("#65CF7E", "#EB9C1D", "#1BC4DE", "#D997F7", "#BD403E"))+
+    labs(x = "\nYear", y = "Green-up DOY (50% of Maximum Curviture) \n", title = "Green-up Change over Time (1985-2021)\n", colour = "Phenophase") +
+    theme_classic() +
+    theme(plot.title = element_text(size = 16, hjust = 0.5), # formats the title, font size 15, centres it, and moves it upwards from the graph
+          plot.margin = unit(c(1,1,1,1), units = , "cm"),  # adds 1 cm margin around the figure) 
+          legend.position = "right")) # positions the legend below the graph
