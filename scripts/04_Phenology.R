@@ -131,6 +131,7 @@ ggsave('figures/50_sen_ts.jpg', width = 9, height = 5, units = 'in', dpi = 400)
 ##### 6 - MODEL PHENOLOGY CHANGE ####
 thresh50$year <- as.numeric(thresh50$year)
 thresh50$year.scaled <- scale(I(thresh50$year - 1984), center = 0)
+thresh50$yearfactor <- as.factor(thresh50$year)
 
 # filter for greenup
 green <- thresh50 %>% 
@@ -141,8 +142,8 @@ senesc <- thresh50 %>%
   filter(phase %in% "senescence")
 
 # ndvi max doy change over time
-greenup_m <- lmer(phase_doy ~ -1 + I(year - 1984)*type +  (1|site),
-                   data = thresh50)
+greenup_m <- lmer(phase_doy ~ -1 + I(year - 1984)*type +  (1|site) + (1|yearfactor),
+                   data = green)
 summary(greenup_m)
 
 tab_model(greenup_m)
@@ -153,7 +154,7 @@ tab_model(greenup_m)
 
 
 # ndvi max doy change over time
-senesc_m <- lmer(phase_doy ~ -1 + I(year - 1984)*type +  (1|site),
+senesc_m <- lmer(phase_doy ~ -1 + I(year - 1984)*type +  (1|site) + (1|yearfactor),
                   data = senesc)
 summary(senesc_m)
 tab_model(senesc_m)
@@ -264,16 +265,16 @@ maxi <- splinesmax %>%
   scale_x_continuous(limits=c(1985,2021)) + scale_y_continuous(limits=c(0,0.85)) +
   facet_wrap(vars(type))
 
-ggsave('figures/50_sen_ts.jpg', width = 9, height = 5, units = 'in', dpi = 400)
+ggsave('figures/50_max_ts.jpg', width = 9, height = 5, units = 'in', dpi = 400)
 
 
 # scale year variable (can be rescaled later)
 maxi$year <- as.numeric(maxi$year)
 maxi$year.scaled <- scale(I(maxi$year - 1984), center = T)
-
+maxi$yearfactor <- as.factor(maxi$year)
 
 # ndvi max doy change over time
-ndvi_max_m <- lmer(ndvi ~ -1 + I(year - 1984)*type + (1|site),
+ndvi_max_m <- lmer(ndvi ~ -1 + I(year - 1984)*type + (1|site) + (1|yearfactor),
                    data = maxi)
 
 summary(ndvi_max_m)
