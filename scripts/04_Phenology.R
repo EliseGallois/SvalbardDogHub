@@ -146,7 +146,7 @@ greenup_m <- lmer(phase_doy ~ -1 + I(year - 1984)*type +  (1|site) + (1|yearfact
                    data = green)
 summary(greenup_m)
 
-tab_model(greenup_m)
+tab_model(greenup_m, digits = 2)
 
 # Visualises random effects
 (re.effects <- plot_model(greenup_m,  show.values = TRUE))
@@ -157,7 +157,7 @@ tab_model(greenup_m)
 senesc_m <- lmer(phase_doy ~ -1 + I(year - 1984)*type +  (1|site) + (1|yearfactor),
                   data = senesc)
 summary(senesc_m)
-tab_model(senesc_m)
+tab_model(senesc_m, digits = 2)
 
 # Visualises random effects
 (re.effects <- plot_model(senesc_m,  show.values = TRUE))
@@ -265,42 +265,76 @@ maxi <- splinesmax %>%
   scale_x_continuous(limits=c(1985,2021)) + scale_y_continuous(limits=c(0,0.85)) +
   facet_wrap(vars(type))
 
-ggsave('figures/50_max_ts.jpg', width = 9, height = 5, units = 'in', dpi = 400)
+ggsave('figures/100_max_ts.jpg', width = 9, height = 5, units = 'in', dpi = 400)
 
 
 # scale year variable (can be rescaled later)
 maxi$year <- as.numeric(maxi$year)
 maxi$year.scaled <- scale(I(maxi$year - 1984), center = T)
 maxi$yearfactor <- as.factor(maxi$year)
+scaling_attributes <- data.frame(predictor = c("year"),
+                                 scale = c(attributes(maxi$year.scaled)$"scaled:scale"))
+
+10.81378
 
 # ndvi max doy change over time
-ndvi_max_m <- lmer(ndvi ~ -1 + I(year - 1984)*type + (1|site) + (1|yearfactor),
+ndvi_max_m <- lmer(ndvi ~ -1 + year.scaled*type + (1|site) + (1|yearfactor),
                    data = maxi)
 
 summary(ndvi_max_m)
-tab_model(ndvi_max_m)
+tab_model(ndvi_max_m, digits = 6)
+plot_model(ndvi_max_m)
 
 # Visualises random effects
 (re.effects <- plot_model(ndvi_max_m,  show.values = TRUE))
-
+ggpredict(ndvi_max_m, se=TRUE,interactive=TRUE)
+str(maxi)
 
 
 # Using model predict for the tern_m model outputs and plotting the predictions
-ggpredict(ndvi_max_m, terms = c("year", "type"),type = "re") %>% plot()
+ggpredict(ndvi_max_m, terms = c("year.scaled", "type")) %>% plot()
 
-predictions <- ggpredict(ndvi_max_m, terms = c("year.scaled","type"), type = "re") 
+# make predictions a data frame
+predictions <- ggpredict(ndvi_max_m, terms = c("year.scaled","type"))
+
+# rescale back to year range
+predictions$x <- as.integer(rescale(predictions$x, to = c(1985, 2021), 
+                         from = range(predictions$x, na.rm = TRUE, finite = FALSE)))
+# rename group to match type
+predictions$type <- predictions$group
 
 
-(ggplot(predictions) + 
-    geom_line(aes(x = year, y = predicted, colour = group), size = 1) + 
-    geom_ribbon(data = predictions, aes(ymin = conf.low, ymax = conf.high, x = year, fill = group), 
-                alpha = 0.1) + 
-    geom_point(data = maxi, 
-               aes(x = year, y = ndvi, colour = type),  alpha = 0.4) +
-    scale_colour_manual(values = c("#65CF7E", "#EB9C1D", "#1BC4DE", "#D997F7", "#BD403E"))+
-    scale_fill_manual(values = c("#65CF7E", "#EB9C1D", "#1BC4DE", "#D997F7", "#BD403E"))+
-    labs(x = "\nYear", y = "Green-up DOY (50% of Maximum Curviture) \n", title = "Green-up Change over Time (1985-2021)\n", colour = "Phenophase") +
-    theme_classic() +
-    theme(plot.title = element_text(size = 16, hjust = 0.5), # formats the title, font size 15, centres it, and moves it upwards from the graph
-          plot.margin = unit(c(1,1,1,1), units = , "cm"),  # adds 1 cm margin around the figure) 
-          legend.position = "right")) # positions the legend below the graph
+               
+# rename factors
+maxi$type <- recode_factor(maxi$type, BC = "Bird cliffs", 
+                             DY = "Active dogyards",
+                           HH = "Historic animal husbandry",
+                           RE = "Reference sites",
+                           ST = "Active stable")
+
+predictions$type <- recode_factor(predictions$type, BC = "Bird cliffs", 
+                           DY = "Active dogyards",
+                           HH = "Historic animal husbandry",
+                           RE = "Reference sites",
+                           ST = "Active stable")
+
+
+ggplot(maxi) +
+  geom_point(data = maxi, 
+             aes(x = year, y = ndvi, colour = ndvi, group = type),  alpha = 0.4) +
+  scale_color_viridis_c(option = "viridis") +
+  geom_line(data = predictions,aes(x = x, y = predicted,group = group), size = 1, colour = "gold") +
+
+  geom_ribbon(data = predictions, aes(ymin = conf.low, ymax = conf.high, x = x, group = group), 
+              alpha = 0.6, fill = "gold") +  
+  theme_classic() +
+  facet_wrap(vars(type)) +
+  labs(x = "\nYear", y = "NDVImax (100% of Maximum Annual Curviture) \n", colour = "NDVImax per pixel") +
+  theme_classic() +
+  ylim(0,1) +
+  facet_wrap(vars(type)) +
+  theme(plot.title = element_text(size = 16, hjust = 0.5), 
+        plot.margin = unit(c(1,1,1,1), units = , "cm"))
+ggsave('figures/ndvi_max_model.jpg', width = 9, height = 5, units = 'in', dpi = 400)
+
+fggs
