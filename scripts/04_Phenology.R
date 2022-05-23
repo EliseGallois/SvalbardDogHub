@@ -26,6 +26,15 @@ as_tibble(head(pheno))
 pheno$site <- recode(pheno$site, PYR_pig = 'HH_pyrpig')
 pheno$site <- recode(pheno$site, REF_tem = 'BC_tem')
 
+
+# plot raw pheno data
+ggplot(pheno) +
+  aes(x = doy, y = ndvi, colour = ndvi) +
+  geom_point(size = 0.2, alpha = 0.4) +
+  scale_color_viridis_c(option = "viridis") +
+  theme_classic() +
+  facet_wrap(vars(site))
+
 # remove sites not suitable for pheno analysis (no greening curves)
 #pheno <- pheno %>% 
  # filter(!(site %in% c("REF_fest", "REF_lein", "REF_odin", "REF_rein")))
@@ -141,20 +150,21 @@ green <- thresh50 %>%
 senesc <- thresh50 %>% 
   filter(phase %in% "senescence")
 
+# get finite years
+green$yearno <- I(green$year - 1984)
+senesc$yearno <- I(senesc$year - 1984)
+
 # ndvi max doy change over time
-greenup_m <- lmer(phase_doy ~ -1 + I(year - 1984)*type +  (1|site) + (1|yearfactor),
+greenup_m <- lmer(phase_doy ~ -1 + yearno*type +  (1|site) + (1|yearfactor),
                    data = green)
 summary(greenup_m)
-
 tab_model(greenup_m, digits = 2)
 
 # Visualises random effects
 (re.effects <- plot_model(greenup_m,  show.values = TRUE))
 
-
-
 # ndvi max doy change over time
-senesc_m <- lmer(phase_doy ~ -1 + I(year - 1984)*type +  (1|site) + (1|yearfactor),
+senesc_m <- lmer(phase_doy ~ -1 + yearno*type +  (1|site) + (1|yearfactor),
                   data = senesc)
 summary(senesc_m)
 tab_model(senesc_m, digits = 2)
@@ -163,51 +173,68 @@ tab_model(senesc_m, digits = 2)
 (re.effects <- plot_model(senesc_m,  show.values = TRUE))
 
 
-
+#### Greenup plot ####
 # Using model predict for the tern_m model outputs and plotting the predictions
-ggpredict(greenup_m, terms = c("year", "type"),type = "re") %>% plot()
+ggpredict(greenup_m, terms = c("yearno", "type")) %>% plot()
 
-predictions <- ggpredict(greenup_m, terms = c("year.scaled","type"), type = "re") 
+# make predictions a data frame
+predictions <- ggpredict(greenup_m, terms = c("yearno","type"))
+predictions2 <- ggpredict(senesc_m, terms = c("yearno","type"))
 
-# rescale year
-predictions$year <- scales::rescale(predictions$x, to = c(1985, 2021))
-
-(ggplot(predictions) + 
-    geom_line(aes(x = year, y = predicted, colour = group), size = 1) + 
-    geom_ribbon(data = predictions, aes(ymin = conf.low, ymax = conf.high, x = year, fill = group), 
-    alpha = 0.1) + 
-    geom_point(data = green, 
-               aes(x = year, y = phase_doy, colour = type),  alpha = 0.4) +
-    scale_colour_manual(values = c("#65CF7E", "#EB9C1D", "#1BC4DE", "#D997F7", "#BD403E"))+
-    scale_fill_manual(values = c("#65CF7E", "#EB9C1D", "#1BC4DE", "#D997F7", "#BD403E"))+
-    labs(x = "\nYear", y = "Green-up DOY (50% of Maximum Curviture) \n", title = "Green-up Change over Time (1985-2021)\n", colour = "Phenophase") +
-    theme_classic() +
-    theme(plot.title = element_text(size = 16, hjust = 0.5), # formats the title, font size 15, centres it, and moves it upwards from the graph
-          plot.margin = unit(c(1,1,1,1), units = , "cm"),  # adds 1 cm margin around the figure) 
-          legend.position = "right")) # positions the legend below the graph
+# rename group to match type
+predictions$type <- predictions$group
+predictions2$type <- predictions$group
 
 
-# Using model predict for the tern_m model outputs and plotting the predictions
-ggpredict(senesc_m, terms = c("year.scaled", "type"),type = "re") %>% plot()
+# rename factors
+green$type <- recode_factor(green$type, BC = "Bird cliffs", 
+                           DY = "Active dogyards",
+                           HH = "Historic animal husbandry",
+                           RE = "Reference sites",
+                           ST = "Active stable")
 
-predictions <- ggpredict(senesc_m, terms = c("year.scaled","type"), type = "re") 
+senesc$type <- recode_factor(senesc$type, BC = "Bird cliffs", 
+                            DY = "Active dogyards",
+                            HH = "Historic animal husbandry",
+                            RE = "Reference sites",
+                            ST = "Active stable")
 
-# rescale year
-predictions$year <- scales::rescale(predictions$x, to = c(1985, 2021))
+predictions$type <- recode_factor(predictions$type, BC = "Bird cliffs", 
+                                  DY = "Active dogyards",
+                                  HH = "Historic animal husbandry",
+                                  RE = "Reference sites",
+                                  ST = "Active stable")
 
-(ggplot(predictions) + 
-    geom_line(aes(x = year, y = predicted, colour = group), size = 1) + 
-    geom_ribbon(data = predictions, aes(ymin = conf.low, ymax = conf.high, x = year, fill = group), 
-                alpha = 0.1) + 
-    geom_point(data = senesc, 
-               aes(x = year, y = phase_doy, colour = type),  alpha = 0.4) +
-    scale_colour_manual(values = c("#65CF7E", "#EB9C1D", "#1BC4DE", "#D997F7", "#BD403E"))+
-    scale_fill_manual(values = c("#65CF7E", "#EB9C1D", "#1BC4DE", "#D997F7", "#BD403E"))+
-    labs(x = "\nYear", y = "Senescence DOY (50% of Maximum Curviture) \n", title = "Senescence Change over Time (1985-2021)\n", colour = "Phenophase") +
-    theme_classic() +
-    theme(plot.title = element_text(size = 16, hjust = 0.5), # formats the title, font size 15, centres it, and moves it upwards from the graph
-          plot.margin = unit(c(1,1,1,1), units = , "cm"),  # adds 1 cm margin around the figure) 
-          legend.position = "right")) # positions the legend below the graph
+predictions2$type <- recode_factor(predictions2$type, BC = "Bird cliffs", 
+                                  DY = "Active dogyards",
+                                  HH = "Historic animal husbandry",
+                                  RE = "Reference sites",
+                                  ST = "Active stable")
+
+# Using model predict for the model outputs and plotting the predictions
+ggplot(green) +
+  geom_point(data = green, 
+             aes(x = year, y = phase_doy,  group = type),  alpha = 0.4, colour = "#09E88F") +
+  geom_line(data = predictions,aes(x = (x+1984), y = predicted, group = group), size = 1, colour = "#09E88F") +
+  
+  geom_ribbon(data = predictions, aes(ymin = conf.low, ymax = conf.high, x = (x+1984), group = group), 
+              alpha = 0.3, fill = "#09E88F") +  
+  geom_point(data = senesc, 
+             aes(x = year, y = phase_doy,  group = type),  alpha = 0.4, colour = "#E0C707") +
+  geom_line(data = predictions2,aes(x = (x+1984), y = predicted, group = group), size = 1, colour = "#E0C707") +
+  
+  geom_ribbon(data = predictions2, aes(ymin = conf.low, ymax = conf.high, x = (x+1984), group = group), 
+              alpha = 0.3, fill = "#E0C707") +  
+  theme_classic() +
+  facet_wrap(vars(type)) +
+  labs(x = "\nYear", y = "Phenophase Day of Year \n", colour = "Phenophase") +
+  theme_classic() +
+  facet_wrap(vars(type)) +
+  theme(plot.title = element_text(size = 16, hjust = 0.5), 
+        plot.margin = unit(c(1,1,1,1), units = , "cm"))
+
+ggsave('figures/phenology_model.jpg', width = 9, height = 5, units = 'in', dpi = 400)
+
 
 #### NDVImax from Raw ####
 
