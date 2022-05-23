@@ -150,6 +150,11 @@ green <- thresh50 %>%
 senesc <- thresh50 %>% 
   filter(phase %in% "senescence")
 
+
+stab <- maxi %>% 
+  filter(type %in% "Active stable")
+
+
 # get finite years
 green$yearno <- I(green$year - 1984)
 senesc$yearno <- I(senesc$year - 1984)
@@ -302,6 +307,7 @@ maxi$yearfactor <- as.factor(maxi$year)
 scaling_attributes <- data.frame(predictor = c("year"),
                                  scale = c(attributes(maxi$year.scaled)$"scaled:scale"))
 
+# scaling attribute for year:
 10.81378
 
 # ndvi max doy change over time
@@ -311,6 +317,21 @@ ndvi_max_m <- lmer(ndvi ~ -1 + year.scaled*type + (1|site) + (1|yearfactor),
 summary(ndvi_max_m)
 tab_model(ndvi_max_m, digits = 6)
 plot_model(ndvi_max_m)
+
+# SLOPES BY SITE
+# (baseline slope + site slope) x (number of days / scaling attribute for year)
+(0.064891)*(36/10.81378) # BC:0.2160277
+(0.064891+0.070355)*(36/10.81378) #DY:0.4502455 ***
+(0.064891+0.051280)*(36/10.81378) #HH: 0.3867432 ***
+(0.064891+0.013073)*(36/10.81378) #RE: 0.2595488 ***
+(0.064891+0.034627)*(36/10.81378) #RE: 0.3313039 ***
+
+# ERROR BY SITE
+(0.014900)*(36/10.81378) # BC:0.04960338
+(0.002991)*(36/10.81378) #DY:0.009957295 ***
+(0.003711)*(36/10.81378) #HH: 0.01235424 ***
+(0.003582)*(36/10.81378) #RE:  0.01192478 ***
+(0.005769)*(36/10.81378) #RE: 0.0192055 ***
 
 # Visualises random effects
 (re.effects <- plot_model(ndvi_max_m,  show.values = TRUE))
