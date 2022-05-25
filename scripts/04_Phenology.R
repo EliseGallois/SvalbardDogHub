@@ -133,8 +133,8 @@ thresh25 = thresh25[!duplicated(thresh25$site_doy_id),]
     scale_color_manual(values = c("#09E88F", "#E0C707")) +
    scale_fill_manual(values = c("#09E88F", "#E0C707")) +
   theme_classic() +
-  facet_wrap(vars(type))
-ggsave('figures/50_sen_ts.jpg', width = 9, height = 5, units = 'in', dpi = 400)
+  facet_wrap(vars(site))
+ggsave('figures/50_sen_ts_site.jpg', width = 9, height = 5, units = 'in', dpi = 400)
 
 
 ##### 6 - MODEL PHENOLOGY CHANGE ####
@@ -324,14 +324,14 @@ plot_model(ndvi_max_m)
 (0.064891+0.070355)*(36/10.81378) #DY:0.4502455 ***
 (0.064891+0.051280)*(36/10.81378) #HH: 0.3867432 ***
 (0.064891+0.013073)*(36/10.81378) #RE: 0.2595488 ***
-(0.064891+0.034627)*(36/10.81378) #RE: 0.3313039 ***
+(0.064891+0.034627)*(36/10.81378) #ST: 0.3313039 ***
 
 # ERROR BY SITE
 (0.014900)*(36/10.81378) # BC:0.04960338
 (0.002991)*(36/10.81378) #DY:0.009957295 ***
 (0.003711)*(36/10.81378) #HH: 0.01235424 ***
 (0.003582)*(36/10.81378) #RE:  0.01192478 ***
-(0.005769)*(36/10.81378) #RE: 0.0192055 ***
+(0.005769)*(36/10.81378) #ST: 0.0192055 ***
 
 # Visualises random effects
 (re.effects <- plot_model(ndvi_max_m,  show.values = TRUE))
