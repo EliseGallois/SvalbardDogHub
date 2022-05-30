@@ -284,6 +284,7 @@ maxi <- splinesmax %>%
   theme(axis.line=element_line()) +
   scale_x_continuous(limits=c(1985,2021)) + scale_y_continuous(limits=c(0,0.85))
 
+ggsave('figures/all_ndvi_max.jpg', width = 9, height = 9, units = 'in', dpi = 400)
 
 
 
