@@ -1,9 +1,9 @@
 #### ELISE GALLOIS  - elise.gallois94@gmail.com 
-
+# This script extracts greenup, senescence and peak NDVI dates and values
+# This script contains statistical models to analyse the trends over time of these extracted values
 
 #### 1 - LOAD PACKAGES ####
 library(tidyverse)
-library(ggplot2)
 library(viridis)
 library(gridExtra)
 library(tidyverse)
@@ -27,7 +27,7 @@ pheno$site <- recode(pheno$site, PYR_pig = 'HH_pyrpig')
 pheno$site <- recode(pheno$site, REF_tem = 'BC_tem')
 
 
-# plot raw pheno data
+# plot raw pheno data (get sense of 'greening curves')
 ggplot(pheno) +
   aes(x = doy, y = ndvi, colour = ndvi) +
   geom_point(size = 0.2, alpha = 0.4) +
@@ -35,12 +35,8 @@ ggplot(pheno) +
   theme_classic() +
   facet_wrap(vars(site))
 
-# remove sites not suitable for pheno analysis (no greening curves)
-#pheno <- pheno %>% 
- # filter(!(site %in% c("REF_fest", "REF_lein", "REF_odin", "REF_rein")))
 
-
-#### 50% ####
+#### 4 - EXTRACT GREENUP AND SENSESCENCE DATES ####
 splines50 <- pheno %>% 
   mutate(type = substr(site, start = 1, stop = 2)) %>%    # get land use type classification 
   mutate(Year = lubridate::ymd(year, truncated = 2L)) %>%  # set year to date type
@@ -51,7 +47,7 @@ splines50 <- pheno %>%
   mutate(ndvi = round(ndvi, digits = 1)) %>%
   filter(ndvi == ratio) 
 
-
+# extract senescence and greenup dates
 splines50a <- splines50 %>% 
   mutate(site_doy_id  = paste(unique_id,doy)) %>% 
   distinct(site_doy_id, .keep_all= TRUE) %>% # remove duplicate rows
@@ -67,7 +63,6 @@ splines50a$range<-(splines50a$senescence-splines50a$greenup)
 # remove any range <5
 splines50a <- splines50a[which(splines50a$range >= 6),]
 
-  
 # long data  
 thresh50 <-  pivot_longer(splines50a,cols = c("greenup", "senescence"),
                names_to = "phase",
@@ -80,46 +75,6 @@ phen50 <- thresh50 %>%
   mutate(site_doy_un  = paste(unique_id,phase_doy)) %>% 
   distinct(site_doy_un, .keep_all= TRUE) 
 
-
-   
-#### 25% ####
-splines25 <- pheno %>% 
-  mutate(type = substr(site, start = 1, stop = 2)) %>%    # get land use type classification 
-  mutate(Year = lubridate::ymd(year, truncated = 2L)) %>%  # set year to date type
-  mutate(unique_id  = paste(sample.id,year)) %>% 
-  dplyr::group_by(unique_id) %>% 
-  dplyr::mutate(ratio = max(ndvi)*0.25) %>% 
-  mutate(ratio = round(ratio, digits = 2)) %>% 
-  mutate(ndvi = round(ndvi, digits = 2)) %>%
-  filter(ndvi == ratio) 
-
-
-splines25a <- splines25 %>% 
-  mutate(site_doy_id  = paste(unique_id,doy)) %>% 
-  distinct(site_doy_id, .keep_all= TRUE) %>% # remove duplicate rows
-  dplyr::group_by(unique_id) %>% 
-  arrange(doy) %>% 
-  dplyr::mutate(
-    greenup = dplyr::first(doy),
-    senescence = dplyr::last(doy)) 
-
-# range between greenup and senescence
-splines25a$range<-(splines25a$senescence-splines25a$greenup)
-
-# remove any range <5
-splines25a <- splines25a[which(splines25a$range >= 6),]
-
-
-# long data  
-thresh25 <-  pivot_longer(splines25a,cols = c("greenup", "senescence"),
-                          names_to = "phase",
-                          values_to = "phase_doy")  
-
-# identify duplicate rows
-thresh25$site_doy_id <- paste(thresh25$site_doy_id,thresh25$phase)
-
-# remove duplicate rows
-thresh25 = thresh25[!duplicated(thresh25$site_doy_id),]
 
 ##### 5 - PLOT TRENDS BY TYPE ####
 
@@ -149,11 +104,6 @@ green <- thresh50 %>%
 # filter for senescence
 senesc <- thresh50 %>% 
   filter(phase %in% "senescence")
-
-
-stab <- maxi %>% 
-  filter(type %in% "Active stable")
-
 
 # get finite years
 green$yearno <- I(green$year - 1984)
@@ -250,8 +200,6 @@ splinesmax <- pheno %>%
   mutate(unique_id  = paste(sample.id,year)) %>% 
   dplyr::group_by(unique_id) %>% 
   dplyr::mutate(ratio = max(ndvi)) %>% 
-  #mutate(ratio = round(ratio, digits = 1)) %>% 
-  #mutate(ndvi = round(ndvi, digits = 1)) %>%
   filter(ndvi == ratio) 
 
 
@@ -268,11 +216,12 @@ splinesmax <- splinesmax %>%
 # identify duplicate rows
 splinesmax$site_doy_id <- paste(splinesmax$site_doy_id)
 
+# keep only distinct values
 maxi <- splinesmax %>% 
   mutate(site_doy_un  = paste(unique_id,doy)) %>% 
   distinct(site_doy_un, .keep_all= TRUE) 
 
-
+# get NDVImax trends over time for all sites
 (max_ndvi <- ggplot(maxi) +
     geom_point(aes(x = year, y = ndvi, colour = ndvi), alpha = 0.5, size = 2) +
     geom_smooth(method=lm, aes(x = year,  y = ndvi), colour = "gold")) + 
@@ -283,11 +232,9 @@ maxi <- splinesmax %>%
   theme_classic() +
   theme(axis.line=element_line()) +
   scale_x_continuous(limits=c(1985,2021)) + scale_y_continuous(limits=c(0,0.85))
-
 ggsave('figures/all_ndvi_max.jpg', width = 9, height = 9, units = 'in', dpi = 400)
 
-
-
+# get NDVImax trends over time grouped by land use types
 (max_ndvi <- ggplot(maxi) +
     geom_point(aes(x = year, y = ndvi, colour = ndvi), alpha = 0.5, size = 2) +
     geom_smooth(method=lm, aes(x = year,  y = ndvi), colour = "gold")) + 
@@ -297,19 +244,12 @@ ggsave('figures/all_ndvi_max.jpg', width = 9, height = 9, units = 'in', dpi = 40
   theme_classic() +
   scale_x_continuous(limits=c(1985,2021)) + scale_y_continuous(limits=c(0,0.85)) +
   facet_wrap(vars(type))
-
 ggsave('figures/100_max_ts.jpg', width = 9, height = 5, units = 'in', dpi = 400)
 
 
 # scale year variable (can be rescaled later)
-maxi$year <- as.numeric(maxi$year)
-maxi$year.scaled <- scale(I(maxi$year - 1984), center = T)
-maxi$yearfactor <- as.factor(maxi$year)
-scaling_attributes <- data.frame(predictor = c("year"),
-                                 scale = c(attributes(maxi$year.scaled)$"scaled:scale"))
-
-# scaling attribute for year:
-10.81378
+maxi$year.scaled <- scale(I(maxi$year - 1984), center = T) # scale so model converges
+maxi$yearfactor <- as.factor(maxi$year) # make a factor version of year for use as random effect
 
 # ndvi max doy change over time
 ndvi_max_m <- lmer(ndvi ~ -1 + year.scaled*type + (1|site) + (1|yearfactor),
@@ -319,7 +259,7 @@ summary(ndvi_max_m)
 tab_model(ndvi_max_m, digits = 6)
 plot_model(ndvi_max_m)
 
-# SLOPES BY SITE
+# CALCULATE SLOPES BY SITE
 # (baseline slope + site slope) x (number of days / scaling attribute for year)
 (0.064891)*(36/10.81378) # BC:0.2160277
 (0.064891+0.070355)*(36/10.81378) #DY:0.4502455 ***
@@ -329,16 +269,13 @@ plot_model(ndvi_max_m)
 
 # ERROR BY SITE
 (0.014900)*(36/10.81378) # BC:0.04960338
-(0.002991)*(36/10.81378) #DY:0.009957295 ***
+(0.002991)*(36/10.81378) #DY: 0.009957295 ***
 (0.003711)*(36/10.81378) #HH: 0.01235424 ***
 (0.003582)*(36/10.81378) #RE:  0.01192478 ***
 (0.005769)*(36/10.81378) #ST: 0.0192055 ***
 
 # Visualises random effects
 (re.effects <- plot_model(ndvi_max_m,  show.values = TRUE))
-ggpredict(ndvi_max_m, se=TRUE,interactive=TRUE)
-str(maxi)
-
 
 # Using model predict for the tern_m model outputs and plotting the predictions
 ggpredict(ndvi_max_m, terms = c("year.scaled", "type")) %>% plot()
@@ -349,11 +286,10 @@ predictions <- ggpredict(ndvi_max_m, terms = c("year.scaled","type"))
 # rescale back to year range
 predictions$x <- as.integer(rescale(predictions$x, to = c(1985, 2021), 
                          from = range(predictions$x, na.rm = TRUE, finite = FALSE)))
+
 # rename group to match type
 predictions$type <- predictions$group
 
-
-               
 # rename factors
 maxi$type <- recode_factor(maxi$type, BC = "Bird cliffs", 
                              DY = "Active dogyards",
@@ -386,4 +322,3 @@ ggplot(maxi) +
         plot.margin = unit(c(1,1,1,1), units = , "cm"))
 ggsave('figures/ndvi_max_model.jpg', width = 9, height = 5, units = 'in', dpi = 400)
 
-fggs
