@@ -23,43 +23,11 @@ library(rgee)
 library(strex)
 library(geojsonio)
 
-# connect R to the GEE
+#### 2 - connect R to the GEE ####
 ee_Initialize()
 db <- 'CGIAR/SRTM90_V4'
 image <- ee$Image(db)
 image$bandNames()$getInfo()
-
-#### 2 - MODIS: LOAD DATA ####
-ndvi <- raster('data/MODIS_NDVI_slopes_Sval.tiff')
-plot(ndvi/1000) # visualise 2000-2021 peak season ndvi change slopes
-hist(ndvi/1000) # plot histogram of distribution
-
-#### 3 - get coords of all plots included in polar alien hunters work
-invasive_sites <- read_excel("data/invasive_plant_spp_svalbard_2016-7.xlsx",
-                             sheet = "Spp per site")
-str(invasive_sites)
-
-(meanplot <- plot(ndvi/1000, main = "NDVI Change 2000-2021", col = viridis(100)))
-
-#### 4 - extract NDVI change for each site
-v <- vect(cbind(invasive_sites$X, invasive_sites$Y), crs="+proj=utm +zone=33X +datum=WGS84  +units=m")
-v
-y <- project(v, "+proj=longlat +datum=WGS84")
-y
-
-cord.dec = SpatialPoints(cbind(invasive_sites$X, invasive_sites$Y), proj4string=CRS("+proj=utm +zone=33X +datum=WGS84  +units=m"))
-cord.UTM <- spTransform(cord.dec, crs(ndvi))
-
-XY_sp <- SpatialPoints(cbind(invasive_sites$X, invasive_sites$Y), 
-                       proj4string=CRS("+proj=longlat +datum=WGS84 +no_defs"))
-cord.UTM <- spTransform(cord.dec , crs(ndvi))
-
-crs(ndvi)
-crs(cord.UTM)
-
-## Now we just need to extract the raster values from these locations                
-ndvi_point <- raster::extract(ndvi, cord.dec, method='simple',df=TRUE)
-plot(ndvi)
 
 
 #### 3 - LSAT Tool- Doughnut Polygons - ACTIVE YARDS ####
@@ -150,12 +118,10 @@ ST_lyr_poly$sample_id <- paste((ST_lyr_poly$sample_id), "_ST_lyr")
 
 
 # Bind Rows
-
 yard_ring_pix <- bind_rows(DY_10_poly, DY_11_poly, DY_12_poly, DY_13_poly,
                            DY_3_poly, DY_4_poly, DY_5_poly, DY_6_poly,
                            DY_7_poly, DY_8_poly, DY_9_poly, DY_bar_poly,
                            HH_barcows_poly,HH_dogs_poly,HH_lyr_poly,ST_lyr_poly)
-
 
 
 # Extract a time-series of Landsat surface reflectance measurements for each Landsat pixel
@@ -165,8 +131,8 @@ task_list <- lsat_export_ts(pixel_coords_sf = yard_ring_pix, startJulian = 120, 
 # check status
 ee_monitoring()
 
-
-
+# Reproducibility note: this will generate a data folder in your google drive. 
+# Zip this folder and save it in the "data/" folder of your SvalbardDogHub repo
 # Create a list of data files exported from GEE and then read them in to R as a data.table object 
 data.files <- list.files('data/earth_engine-lsat_yardring', full.names = T, pattern = 'doughnut')
 lsat.dt <- do.call("rbind", lapply(data.files, fread))
@@ -189,7 +155,7 @@ lsat.dt <- lsat_calc_spec_index(lsat.dt, si = 'ndvi')
 # Cross-calibrate NDVI among sensors using random forest models and overwrite data in the NDVI column  
 lsat.dt <- lsat_calibrate_rf(lsat.dt, band.or.si = 'ndvi', doy.rng = 120:240, 
                              train.with.highlat.data = T, outdir = 'output/ndvi_xcal_smry/', overwrite.col = T)
-fwrite(lsat.dt, 'output/Apheno_dog.csv')
+fwrite(lsat.dt, 'output/Apheno_dog.csv') # "raw" data aka calibrated but no pheno cubic splines fitted
 
 # Fit phenological models (cubic splines) to each time series
 lsat.pheno.dt <- lsat_fit_phenological_curves(lsat.dt, si = 'ndvi', window.min.obs = 4, test.run = F)
@@ -216,7 +182,6 @@ ggsave('figures/figure_yardring_ndvi_max_trend_distribution.jpg', width = 6, hei
 lsat.trend.sf <- lsat.trend.dt %>% st_as_sf(coords=c('longitude', 'latitude'), crs = st_crs("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"))
 lsat.trend.sf <- lsat.trend.sf %>% st_transform(crs = 3413)
 st_write(lsat.trend.sf, dsn = 'data/lsat_ndvimax_trends_doughnut.shp')
-
 
 
 lsat.gs.dt <- lsat.gs.dt %>%
@@ -343,7 +308,6 @@ BC_skans_poly$sample_id <- paste((BC_skans_poly$sample_id), "_BC_skans")
 BC_alkhor_poly$sample_id <- paste((BC_alkhor_poly$sample_id), "_BC_alkhor")
 
 # Bind Rows
-
 ref_ring_pix <- bind_rows(REF_fest_poly, REF_tem_poly, REF_bjor_poly, BC_Fjort_poly,
                           BC_Oss_poly, BC_stu_poly, BC_skans_poly, BC_alkhor_poly)
 
@@ -354,7 +318,6 @@ task_list <- lsat_export_ts(pixel_coords_sf = ref_ring_pix, startJulian = 120, e
 
 # check status
 ee_monitoring()
-
 
 
 # Create a list of data files exported from GEE and then read them in to R as a data.table object 
@@ -380,7 +343,7 @@ lsat.dt <- lsat_calc_spec_index(lsat.dt, si = 'ndvi')
 # Cross-calibrate NDVI among sensors using random forest models and overwrite data in the NDVI column  
 lsat.dt <- lsat_calibrate_rf(lsat.dt, band.or.si = 'ndvi', doy.rng = 120:270, 
                              train.with.highlat.data = T, outdir = 'output/ndvi_xcal_smry_ref/', overwrite.col = T)
-fwrite(lsat.dt, 'output/Apheno_ref.csv')
+fwrite(lsat.dt, 'output/Apheno_ref.csv') # "raw" data aka calibrated but no pheno cubic splines fitted
 
 # Fit phenological models (cubic splines) to each time series
 lsat.pheno.dt <- lsat_fit_phenological_curves(lsat.dt, si = 'ndvi', test.run = F)
@@ -469,11 +432,8 @@ ggplot(lsat.gs.dt) +
   facet_wrap(vars(yard), scales = "free")
 
 
-
-
-
 #### 5 - LSAT Tool-  Polygons - EXTRA SITES ####
-pig <- vect("data/pyr.shp")
+pig <- vect("data/pyr.shp") # added later - pig yard coordinates for pyramiden
 plot(pig)
 
 # create buffer
@@ -534,7 +494,7 @@ lsat.dt <- lsat_calc_spec_index(lsat.dt, si = 'ndvi')
 # Cross-calibrate NDVI among sensors using random forest models and overwrite data in the NDVI column  
 lsat.dt <- lsat_calibrate_rf(lsat.dt, band.or.si = 'ndvi', doy.rng = 120:270, 
                              train.with.highlat.data = T, outdir = 'output/ndvi_xcal_smry_pig/', overwrite.col = T)
-fwrite(lsat.dt, 'output/Apheno_pig.csv')
+fwrite(lsat.dt, 'output/Apheno_pig.csv') # "raw" data aka calibrated but no pheno cubic splines fitted
 
 # Fit phenological models (cubic splines) to each time series
 lsat.pheno.dt <- lsat_fit_phenological_curves(lsat.dt, si = 'ndvi', test.run = F)
@@ -619,8 +579,7 @@ ggplot(lsat.gs.dt) +
 
 
 ## Extra ref sites ##
-
-ref <- vect("data/extra_ref.shp")
+ref <- vect("data/extra_ref.shp") # extra reference sites
 plot(ref)
 
 # create buffer
@@ -679,7 +638,6 @@ REF_lein_poly$sample_id <- paste((REF_lein_poly$sample_id), "_REF_lein")
 
 
 # Bind Rows
-
 ref_ring_pix <- bind_rows(REF_col_poly, REF_odin_poly, REF_gron_poly, REF_rein_poly,
                           REF_bolt_poly, REF_lein_poly)
 
@@ -715,7 +673,7 @@ lsat.dt <- lsat_calc_spec_index(lsat.dt, si = 'ndvi')
 # Cross-calibrate NDVI among sensors using random forest models and overwrite data in the NDVI column  
 lsat.dt <- lsat_calibrate_rf(lsat.dt, band.or.si = 'ndvi', doy.rng = 120:270, 
                              train.with.highlat.data = T, outdir = 'output/ndvi_xcal_smry_ref/', overwrite.col = T)
-fwrite(lsat.dt, 'output/Apheno_refextra.csv')
+fwrite(lsat.dt, 'output/Apheno_refextra.csv') # "raw" data aka calibrated but no pheno cubic splines fitted
 
 # Fit phenological models (cubic splines) to each time series
 lsat.pheno.dt <- lsat_fit_phenological_curves(lsat.dt, si = 'ndvi', test.run = F)
@@ -829,7 +787,7 @@ ggsave('figures/all_sites_ndvimax_trend.jpg', width = 9, height = 9, units = 'in
 # save csv
 fwrite(sval_green, 'output/lsat_NDVImx_all.csv')
 
-# add in all the pheno datasets
+# add in all the pheno datasets WITH fitted pheno cubic splines
 dog <- read_csv("output/pheno_dog.csv")
 ref <- read_csv("output/pheno_ref.csv")
 ref_x <- read_csv("output/pheno_refextra.csv")
@@ -856,7 +814,7 @@ fwrite(sval_phen, 'output/lsat_phen_all.csv')
 
 
 
-# add in all the pheno datasets
+# add in all the pheno datasets WITHOUT cubic splines fitted
 dog <- read_csv("output/Apheno_dog.csv")
 ref <- read_csv("output/Apheno_ref.csv")
 ref_x <- read_csv("output/Apheno_refextra.csv")
