@@ -100,4 +100,13 @@ yearly.means <- ddply(ndvi_group,c("site","year"),summarise,mean=mean(ndvi.max))
     facet_wrap(vars(site)))
 ggsave('figures/extra/all_sites_ndvimax_annual_splines.jpg', width = 9, height = 9, units = 'in', dpi = 400)
 
+#### 5 - heterogeneity ####
+ggplot(ndvi_group) +
+  aes(x = site, y = ndvi.max, fill = type) +
+  geom_boxplot(adjust = 1L, scale = "area") +
+  geom_point(position = position_jitterdodge(seed = 1, dodge.width = 0.9), alpha = 0.1) +
+  scale_fill_hue() +
+  theme_minimal()
+ 
+
 
