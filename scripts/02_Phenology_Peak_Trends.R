@@ -234,6 +234,102 @@ maxi <- splinesmax %>%
   scale_x_continuous(limits=c(1985,2021)) + scale_y_continuous(limits=c(0,0.85))
 ggsave('figures/all_ndvi_max.jpg', width = 9, height = 9, units = 'in', dpi = 400)
 
+
+# filter above for case study plots
+case_study <- maxi %>% 
+  filter(site %in% c("DY_12", "HH_lyr","HH_dogs", "BC_alkhor","REF_fest")) 
+
+case_study$site <- recode(case_study$site, DY_12 = 'Active Dog yard')
+case_study$site <- recode(case_study$site, HH_dogs = 'Abandoned Dog yard')
+case_study$site <- recode(case_study$site, BC_alkhor = 'Bird Cliff')
+case_study$site <- recode(case_study$site, REF_fest = 'Natural tundra')
+case_study$site <- recode(case_study$site, HH_lyr = 'Abandoned Livestock')
+
+
+(case_study_ndvi <- ggplot(case_study) +
+    geom_point(aes(x = year, y = ndvi, colour = ndvi), alpha = 0.5, size = 2) +
+    geom_smooth(method=lm, aes(x = year,  y = ndvi), colour = "gold")) + 
+  ylab("NDVImax \n") +
+  xlab("Year") +
+  scale_color_viridis_c(option = "viridis") +
+  facet_wrap(vars(site), scales='free') +
+  theme_classic() +
+  theme(axis.line=element_line()) +
+  scale_x_continuous(limits=c(1985,2021)) + scale_y_continuous(limits=c(0,0.85))
+ggsave('figures/case_study_ndvi_max.jpg', width = 10, height = 5, units = 'in', dpi = 1000)
+
+# individual plots
+abandoned_dy <- case_study %>% 
+  filter(site == "Abandoned Dog yard") 
+
+(ab_dy_ndvi <- ggplot(abandoned_dy) +
+    geom_point(aes(x = year, y = ndvi, colour = ndvi), alpha = 0.5, size = 2) +
+    geom_smooth(method=lm, aes(x = year,  y = ndvi), colour = "gold")) + 
+  ylab("NDVImax \n") +
+  xlab("Year") +
+  scale_color_viridis_c(option = "viridis") +
+  theme_classic() +
+  theme(axis.line=element_line()) +
+  scale_x_continuous(limits=c(1985,2021)) + scale_y_continuous(limits=c(0,0.85))
+ggsave('figures/abandoned_dy_ndvi_max.jpg', width = 6, height = 3, units = 'in', dpi = 1000)
+
+active_dy <- case_study %>% 
+  filter(site == "Active Dog yard") 
+
+(ac_dy_ndvi <- ggplot(active_dy) +
+    geom_point(aes(x = year, y = ndvi, colour = ndvi), alpha = 0.5, size = 2) +
+    geom_smooth(method=lm, aes(x = year,  y = ndvi), colour = "gold")) + 
+  ylab("NDVImax \n") +
+  xlab("Year") +
+  scale_color_viridis_c(option = "viridis") +
+  theme_classic() +
+  theme(axis.line=element_line()) +
+  scale_x_continuous(limits=c(1985,2021)) + scale_y_continuous(limits=c(0,0.85))
+ggsave('figures/active_dy_ndvi_max.jpg', width = 6, height = 3, units = 'in', dpi = 1000)
+
+bc <- case_study %>% 
+  filter(site == "Bird Cliff") 
+
+(ac_dy_ndvi <- ggplot(bc) +
+    geom_point(aes(x = year, y = ndvi, colour = ndvi), alpha = 0.5, size = 2) +
+    geom_smooth(method=lm, aes(x = year,  y = ndvi), colour = "gold")) + 
+  ylab("NDVImax \n") +
+  xlab("Year") +
+  scale_color_viridis_c(option = "viridis") +
+  theme_classic() +
+  theme(axis.line=element_line()) +
+  scale_x_continuous(limits=c(1985,2021)) + scale_y_continuous(limits=c(0,0.85))
+ggsave('figures/bird_ndvi_max.jpg', width = 6, height = 3, units = 'in', dpi = 1000)
+
+
+natural <- case_study %>% 
+  filter(site == "Natural tundra") 
+
+(nat_ndvi <- ggplot(natural) +
+    geom_point(aes(x = year, y = ndvi, colour = ndvi), alpha = 0.5, size = 2) +
+    geom_smooth(method=lm, aes(x = year,  y = ndvi), colour = "gold")) + 
+  ylab("NDVImax \n") +
+  xlab("Year") +
+  scale_color_viridis_c(option = "viridis") +
+  theme_classic() +
+  theme(axis.line=element_line()) +
+  scale_x_continuous(limits=c(1985,2021)) + scale_y_continuous(limits=c(0,0.85))
+ggsave('figures/natural_tundra_ndvi_max.jpg', width = 6, height = 3, units = 'in', dpi = 1000)
+
+ab_livestock <- case_study %>% 
+  filter(site == "Abandoned Livestock") 
+
+(ab_livestock <- ggplot(ab_livestock) +
+    geom_point(aes(x = year, y = ndvi, colour = ndvi), alpha = 0.5, size = 2) +
+    geom_smooth(method=lm, aes(x = year,  y = ndvi), colour = "gold")) + 
+  ylab("NDVImax \n") +
+  xlab("Year") +
+  scale_color_viridis_c(option = "viridis") +
+  theme_classic() +
+  theme(axis.line=element_line()) +
+  scale_x_continuous(limits=c(1985,2021)) + scale_y_continuous(limits=c(0,0.85))
+ggsave('figures/abandoned_livestock_ndvi_max.jpg', width = 6, height = 3, units = 'in', dpi = 1000)
+
 # get NDVImax trends over time grouped by land use types
 (max_ndvi <- ggplot(maxi) +
     geom_point(aes(x = year, y = ndvi, colour = ndvi), alpha = 0.5, size = 2) +
