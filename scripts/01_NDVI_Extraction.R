@@ -29,7 +29,6 @@ db <- 'CGIAR/SRTM90_V4'
 image <- ee$Image(db)
 image$bandNames()$getInfo()
 
-
 #### 3 - LSAT Tool- Doughnut Polygons - ACTIVE YARDS ####
 yard <- vect("data/yard_para.shp")
 plot(yard)
